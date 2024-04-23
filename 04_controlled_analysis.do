@@ -4,8 +4,9 @@
 ** compile tables with MOEs (WIP)
 ** export dataset
 
-** v04: add language ~ add regions ~ improve disability coding.
-** v03: add disability ~ currently separate modules, but count consider combining into one series of rakes.
+** v05: fixed disability code (tbd: add language, regions)
+** v04: wip to add disability
+** v03: wip to add disbaility
 ** v02: change to faster, consistent totals by county
 ** v01: first version, sequential totals 1/36
 
@@ -291,7 +292,7 @@ browse county bAfrAm-bWhiteOth
 */ 
 
 // obtain control totals by age/sex/disaby
-	foreach t in "dis 18101" "dear 18102" "deye 18103" "drem 18104" "dphy 18105" "ddrs 18106" "dout 18107" {
+	foreach t in "dis 18101" "dear 18102" "deye 18103" "drem 18104" "dphy 18105" "ddrs 18106" "dout 18107" { 
 		tokenize `t'
 		tempfile tmp
 		local T="B`2'"
@@ -300,73 +301,38 @@ browse county bAfrAm-bWhiteOth
 		censusapi, url("https://api.census.gov/data/2021/acs/acs5?get=group(`T')&for=county:011&in=state:53")
 		append using `tmp'
 		rename b`2'_*e e*
+		#delimit ;
+		if "`1'"=="dout" { ; // 3 age groups;
+			gen `1'1_1834_1=e004; gen `1'1_1834_2=e017; gen `1'1_3564_1=e007;
+			gen `1'1_3564_2=e020; gen `1'1_6599_1=e010+e013; gen `1'1_6599_2=e023+e026;
+			gen `1'2_1834_1=e005; gen `1'2_1834_2=e018; gen `1'2_3564_1=e008;
+			gen `1'2_3564_2=e021; gen `1'2_6599_1=e011+e014; gen `1'2_6599_2=e024+e027;	};
+		else if inlist("`1'","ddrs","dphy","drem") { ; // 4 age groups;
+			gen `1'1_0517_1=e004; gen `1'1_1834_1=e007; gen `1'1_3564_1=e010; gen `1'1_6599_1=e013+e016;
+			gen `1'2_0517_1=e005; gen `1'2_1834_1=e008;	gen `1'2_3564_1=e011; gen `1'2_6599_1=e014+e017;
+			gen `1'1_0517_2=e020; gen `1'1_1834_2=e023; gen `1'1_3564_2=e026; gen `1'1_6599_2=e029+e032;
+			gen `1'2_0517_2=e021; gen `1'2_1834_2=e024; gen `1'2_3564_2=e027; gen `1'2_6599_2=e030+e033; };
+		else if inlist("`1'","deye","dear","dis") { ; // 5 age groups;
+			gen `1'1_0004_1=e004; gen `1'1_0517_1=e007; gen `1'1_1834_1=e010; gen `1'1_3564_1=e013; gen `1'1_6599_1=e016+e019;
+			gen `1'2_0004_1=e005; gen `1'2_0517_1=e008;	gen `1'2_1834_1=e011; gen `1'2_3564_1=e014;	gen `1'2_6599_1=e017+e020;
+			gen `1'1_0004_2=e023; gen `1'1_0517_2=e026; gen `1'1_1834_2=e029; gen `1'1_3564_2=e032; gen `1'1_6599_2=e035+e038;
+			gen `1'2_0004_2=e024; gen `1'2_0517_2=e027; gen `1'2_1834_2=e030; gen `1'2_3564_2=e033; gen `1'2_6599_2=e036+e039; };
+		#delimit cr
 		tostring state, replace format(%02.0f) 
 		tostring county, replace format(%03.0f)
-		if "`1'"=="dout" { // 3 age groups
-			gen `1'1_1834_1=e004
-			gen `1'1_1834_2=e017
-			gen `1'1_3564_1=e007
-			gen `1'1_3564_2=e020
-			gen `1'1_6599_1=e010+e013
-			gen `1'1_6599_2=e023+e026
-			gen `1'2_1834_1=e005
-			gen `1'2_1834_2=e018
-			gen `1'2_3564_1=e008
-			gen `1'2_3564_2=e021
-			gen `1'2_6599_1=e011+e014
-			gen `1'2_6599_2=e024+e027
-		}
-		else if inlist("`1'","ddrs","dphy","drem") { // 4 age groups
-			gen `1'1_0517_1=e004
-			gen `1'1_1834_1=e007
-			gen `1'1_3564_1=e010
-			gen `1'1_6599_1=e013+e016
-			gen `1'2_0517_1=e005
-			gen `1'2_1834_1=e008
-			gen `1'2_3564_1=e011
-			gen `1'2_6599_1=e014+e017
-			gen `1'1_0517_2=e020
-			gen `1'1_1834_2=e023
-			gen `1'1_3564_2=e026
-			gen `1'1_6599_2=e029+e032
-			gen `1'2_0517_2=e021
-			gen `1'2_1834_2=e024
-			gen `1'2_3564_2=e027
-			gen `1'2_6599_2=e030+e033
-		}
-		else if inlist("`1'","deye","dear","dis") { // 5 age groups
-			gen `1'1_0004_1=e004
-			gen `1'1_0517_1=e007
-			gen `1'1_1834_1=e010
-			gen `1'1_3564_1=e013
-			gen `1'1_6599_1=e016+e019
-			gen `1'2_0004_1=e005
-			gen `1'2_0517_1=e008
-			gen `1'2_1834_1=e011
-			gen `1'2_3564_1=e014
-			gen `1'2_6599_1=e017+e020
-			gen `1'1_0004_2=e023
-			gen `1'1_0517_2=e026
-			gen `1'1_1834_2=e029
-			gen `1'1_3564_2=e032
-			gen `1'1_6599_2=e035+e038
-			gen `1'2_0004_2=e024
-			gen `1'2_0517_2=e027
-			gen `1'2_1834_2=e030
-			gen `1'2_3564_2=e033
-			gen `1'2_6599_2=e036+e039
-		}
-		keep state county `1'1_* `1'2_*
-		reshape long `1'1_@_1 `1'1_@_2 `1'2_@_1 `1'2_@_2, i(state county) j(agecat) string
-		reshape long `1'1__@ `1'2__@, i(state county agecat) j(sex)
-		reshape long `1'@__, i(state county agecat sex) j(`1')
+		gen stcofips=state+county
+		keep stcofips `1'1_* `1'2_*
+		reshape long `1'1_@_1 `1'1_@_2 `1'2_@_1 `1'2_@_2, i(stcofips) j(agecat) string
+		reshape long `1'1__@ `1'2__@, i(stcofips agecat) j(sex)
+		reshape long `1'@__, i(stcofips agecat sex) j(`1')
 		ren `1'__ `1'_n // clearly label population count variable
-		rename agecat agec5 // even though not all groups are used, these 
-		egen `1'1_tot=sum(`1'_n) if `1'==1, by(state county)
+		rename agecat agec5
+		egen `1'1_tot=sum(`1'_n) if `1'==1, by(stcofips)
 		gen int year=2021 
+		*collapse (sum) `1'_n, by(stcofips year agec5 `1') // don't need sex detail
 		save control_`1'_tmp.dta, replace // merge by state county year agec5 `i'(1=yes/2=no/.=na)
 	}
-// obtain control totals by age/sex/n_of_disaby
+// obtain control totals by age/n_of_disaby
 	tempfile tmp
 	local T="C18108"
 	censusapi, url("https://api.census.gov/data/2021/acs/acs5?get=group(`T')&for=county:*&in=state:41")
@@ -374,8 +340,6 @@ browse county bAfrAm-bWhiteOth
 	censusapi, url("https://api.census.gov/data/2021/acs/acs5?get=group(`T')&for=county:011&in=state:53")
 	append using `tmp'
 	rename c18108_*e e*
-	tostring state, replace format(%02.0f) 
-	tostring county, replace format(%03.0f)
 	gen dnum1_0017=e003
 	gen dnum2_0017=e004
 	gen dnum0_0017=e005
@@ -385,12 +349,15 @@ browse county bAfrAm-bWhiteOth
 	gen dnum1_6599=e011
 	gen dnum2_6599=e012
 	gen dnum0_6599=e013
-	keep state county dnum*
-	reshape long dnum0_@ dnum1_@ dnum2_@, i(state county) j(agecat) string
-	reshape long dnum@_, i(state county agecat) j(dnum)
+	tostring state, replace format(%02.0f) 
+	tostring county, replace format(%03.0f)
+	gen stcofips=state+county
+	keep stcofips dnum*
+	reshape long dnum0_@ dnum1_@ dnum2_@, i(stcofips) j(agecat) string
+	reshape long dnum@_, i(stcofips agecat) j(dnum)
 	ren dnum_ dnum_n
 	ren agecat agec3
-	egen dnum2tot=sum(dnum_n) if dnum==2, by(state county)
+	egen dnum2tot=sum(dnum_n) if dnum==2, by(stcofips)
 	gen int year=2021
 	save control_dnum_tmp.dta, replace
 // obtain control totals by detailed age/sex
@@ -400,8 +367,6 @@ browse county bAfrAm-bWhiteOth
 	save `tmp', replace
 	censusapi, url("https://api.census.gov/data/2021/acs/acs5?get=group(`T')&for=county:011&in=state:53")
 	append using `tmp'
-	tostring state, replace format(%02.0f) 
-	tostring county, replace format(%03.0f)
 	gen a_0004_1=b01001_003e
 	gen a_0514_1=b01001_004e+b01001_005e
 	gen a_1517_1=b01001_006e
@@ -424,31 +389,133 @@ browse county bAfrAm-bWhiteOth
 	gen a_5059_2=b01001_040e+b01001_041e
 	gen a_6064_2=b01001_042e+b01001_043e
 	gen a_6599_2=b01001_044e+b01001_045e+b01001_046e+b01001_047e+b01001_048e+b01001_049e
-	keep state county a_*
-	reshape long a_0004_ a_0514_ a_1517_ a_1819_ a_2024_ a_2529_ a_3039_ a_4049_ a_5059_ a_6064_ a_6599_, i(state county) j(sex)
-	reshape long a_@_, i(state county sex) j(agecat) string
-	rename agecat agec11
-	egen atot=sum(a__), by(state county)
+	tostring state, replace format(%02.0f) 
+	tostring county, replace format(%03.0f)
+	gen stcofips=state+county
+	keep stcofips a_*
+	reshape long a_0004_ a_0514_ a_1517_ a_1819_ a_2024_ a_2529_ a_3039_ a_4049_ a_5059_ a_6064_ a_6599_, i(stcofips) j(sex)
+	reshape long a_@_, i(stcofips sex) j(agecat) string
+	egen atot=sum(a__), by(stcofips)
 	ren a__ a_n // N by age
+	rename agecat agec11
 	gen int year=2021
+	*collapse (sum) a_n, by(stcofips year agec11)
 	save control_age_tmp.dta, replace
 
 //
 // LOAD pums data from prior step and ADD control totals
 cap confirm file 05_ipf_pums_v01_disaby.dta
 if _rc {
-	use state county sex agep dis deye dear ddrs dphy drem dout disdi da4cat da7compacsall d*oicv2 pwgtp* using 5ACS21_ORWA_RELDPRI.dta, clear 
+	use stcofips sex agep dis deye dear ddrs dphy drem dout disdi da4cat da7compacsall d*oicv2 pwgtp* using 5ACS21_ORWA_RELDPRI.dta, clear 
+	*gen stcofips=state+county
+	*drop state county
 	gen int year=2021
-	gen agec3=""
-	replace agec3="0017" if inrange(agep,0,17)
-	replace agec3="1864" if inrange(agep,18,64)
-	replace agec3="6599" if inrange(agep,65,99)
 	gen agec5=""
 	replace agec5="0004" if inrange(agep,0,4)
 	replace agec5="0517" if inrange(agep,5,17)
 	replace agec5="1834" if inrange(agep,18,34)
 	replace agec5="3564" if inrange(agep,35,64)
 	replace agec5="6599" if inrange(agep,65,99)
+	// fillin possible demographics that don't exist in the PUMS, so that avoid merge fail with controls.
+	foreach d in  "dis" "dear" "deye" "dphy" "drem" "ddrs" "dout"  { //  
+		fillin stcofips year sex agec5 `d'
+		drop if _fillin==1 & `d'==.
+		drop if _fillin==1 & inlist("`d'","drem","dphy","ddrs") & agec5=="0004" // drop <5 value of agec5 for these (uses 4/5)
+		drop if _fillin==1 & "`d'"=="dout" & agep<18 & inlist(agec5,"0004","0517") // drop <18 value of agec5 for these (uses 3/5)
+		qui for var pwgtp pwgtp1-pwgtp80: replace X=0 if _fillin
+		sum _fillin, mean
+		if `r(max)'==1 {
+			levelsof agec5 if _fillin, local(ages) clean
+			** impute missing ages
+			foreach a of local ages {
+				sum agep if agec5=="`a'" & `d'==1 [fw=pwgtp] 
+				cap replace agep=round(`r(mean)') if _fillin==1 & agec5=="`a'"
+				if _rc drop if _fillin==1 & agec5=="`a'" 
+			}
+			** update agec5
+			replace agec5="0004" if _fillin==1 & inrange(agep,0,4) 
+			replace agec5="0517" if _fillin==1 & inrange(agep,5,17)
+			replace agec5="1834" if _fillin==1 & inrange(agep,18,34)
+			replace agec5="3564" if _fillin==1 & inrange(agep,35,64)
+			replace agec5="6599" if _fillin==1 & inrange(agep,65,99)
+			** update dis/disdi
+			replace dis=`d' if _fillin==1 
+			replace disdi=(`d'-2)*-1 if _fillin==1 
+			** update da4/da7/d*oic
+			if "`d'"=="dis" {
+				replace da4cat=1 if _fillin==1 & `d'==1 
+				replace da4cat=0 if _fillin==1 & `d'==2
+				replace da7compacsall=1 if (_fillin==1 & `d'==1) 
+				replace da7compacsall=0 if (_fillin==1 & `d'==2) 
+				for any "deye" "dear": replace X=2 if _fillin \\ replace Xoicv2=0 if _fillin
+				for any "dphy" "drem" "ddrs": replace X=2 if _fillin & agep>=5 \\ replace Xoicv2=0 if _fillin & agep>=5
+				for any "dout": replace X=2 if _fillin & agep>=18 \\ replace Xoicv2=0 if _fillin & agep>=18
+			}
+			if "`d'"=="dear" {
+				replace `d'oicv2=(`d'-2)*-1 if _fillin==1 
+				replace da4cat=1 if _fillin==1 & `d'==1 
+				replace da4cat=0 if _fillin==1 & `d'==2
+				replace da7compacsall=1 if (_fillin==1 & `d'==1) 
+				replace da7compacsall=0 if (_fillin==1 & `d'==2) 
+				for any "deye": replace X=2 if _fillin \\ replace Xoicv2=0 if _fillin
+				for any "dphy" "drem" "ddrs": replace X=2 if _fillin & agep>=5 \\ replace Xoicv2=0 if _fillin & agep>=5
+				for any "dout": replace X=2 if _fillin & agep>=18 \\ replace Xoicv2=0 if _fillin & agep>=18
+			}
+			if "`d'"=="deye" {
+				replace `d'oicv2=(`d'-2)*-1 if _fillin==1
+				replace da4cat=1 if _fillin==1 & `d'==1 
+				replace da4cat=0 if _fillin==1 & `d'==2
+				replace da7compacsall=2 if (_fillin==1 & `d'==1) 
+				replace da7compacsall=0 if (_fillin==1 & `d'==2) 
+				for any "dear": replace X=2 if _fillin \\ replace Xoicv2=0 if _fillin
+				for any "dphy" "drem" "ddrs": replace X=2 if _fillin & agep>=5
+				for any "dout": replace X=2 if _fillin & agep>=18
+			}
+			if "`d'"=="dphy" {
+				replace `d'oicv2=(`d'-2)*-1 if _fillin==1
+				replace da4cat=1 if _fillin==1 & `d'==1 
+				replace da4cat=0 if _fillin==1 & `d'==2
+				replace da7compacsall=3 if (_fillin==1 & `d'==1) 
+				replace da7compacsall=0 if (_fillin==1 & `d'==2) 
+				for any "deye" "dear": replace X=2 if _fillin \\ replace Xoicv2=0 if _fillin
+				for any "drem" "ddrs": replace X=2 if _fillin \\ replace Xoicv2=0 if _fillin
+				for any "dout": replace X=2 if _fillin & agep>=18 \\ replace Xoicv2=0 if _fillin & agep>=18
+			}
+			if "`d'"=="drem" {
+				replace `d'oicv2=(`d'-2)*-1 if _fillin==1
+				replace da4cat=1 if _fillin==1 & `d'==1 
+				replace da4cat=0 if _fillin==1 & `d'==2
+				replace da7compacsall=4 if (_fillin==1 & `d'==1) 
+				replace da7compacsall=0 if (_fillin==1 & `d'==2) 
+				for any "deye" "dear": replace X=2 if _fillin \\ replace Xoicv2=0 if _fillin
+				for any "dphy" "ddrs": replace X=2 if _fillin \\ replace Xoicv2=0 if _fillin
+				for any "dout": replace X=2 if _fillin & agep>=18 \\ replace Xoicv2=0 if _fillin & agep>=18
+			}
+			if "`d'"=="ddrs" {
+				replace `d'oicv2=(`d'-2)*-1 if _fillin==1
+				replace da4cat=3 if _fillin==1 & `d'==1 
+				replace da4cat=0 if _fillin==1 & `d'==2
+				replace da7compacsall=6 if (_fillin==1 & `d'==1) 
+				replace da7compacsall=0 if (_fillin==1 & `d'==2) 
+				for any "deye" "dear": replace X=2 if _fillin \\ replace Xoicv2=0 if _fillin
+				for any "drem" "dphy": replace X=2 if _fillin \\ replace Xoicv2=0 if _fillin
+				for any "dout": replace X=2 if _fillin & agep>=18 \\ \\ replace Xoicv2=0 if _fillin & agep>=18
+			}
+			if "`d'"=="dout" {
+				replace `d'oicv2=(`d'-2)*-1 if _fillin==1
+				replace da4cat=3 if _fillin==1 & `d'==1 
+				replace da4cat=0 if _fillin==1 & `d'==2
+				replace da7compacsall=6 if (_fillin==1 & `d'==1) 
+				replace da7compacsall=0 if (_fillin==1 & `d'==2) 
+				for any "deye" "dear": replace X=2 if _fillin \\ replace Xoicv2=0 if _fillin
+				for any "drem" "dphy" "ddrs": replace X=2 if _fillin \\ replace Xoicv2=0 if _fillin
+			}
+			** update year
+			replace year=2021 if _fillin==1
+		}
+		drop _fillin
+	}
+	** detailed agecat
 	gen agec11=""
 	replace agec11="0004" if inrange(agep,0,4)
 	replace agec11="0514" if inrange(agep,5,14)
@@ -461,103 +528,144 @@ if _rc {
 	replace agec11="5059" if inrange(agep,50,59)
 	replace agec11="6064" if inrange(agep,60,64)
 	replace agec11="6599" if inrange(agep,65,99)
-	fillin state county sex agec5 dis
-	merge m:1 state county sex agec5 dis using control_dis_tmp.dta, assert(1 3) // 1=na.
-	drop if _fillin & _merge==1
-	qui for var pwgtp pwgtp1-pwgtp80: replace X=0 if _fillin==1 & _merge==3
+	** count num of disabilities (0-1-2+ by agec3)
+	for var ddrs dear deye dout dphy drem: gen Xd=X*-1+2 // convert 1=y,2=n into 0=n,1=y
+	egen dnum=rowtotal(ddrsd deard deyed doutd dphyd dremd)
+	replace dnum=1 if dis==1 & dnum==0
+	tab dnum dis
+	replace dnum=2 if dnum>2 & dnum<. 
+	drop ddrsd deard deyed doutd dphyd dremd
+	gen agec3="0017" if inrange(agep,0,17)
+	replace agec3="1864" if inrange(agep,18,64)
+	replace agec3="6599" if inrange(agep,65,99)
+	fillin stcofips agec3 dnum 
+	drop if agec3=="" & _fillin==1
+	assert _fillin==0
 	drop _fillin
-	** update agec3 and agec11
-	replace agec3="0017" if inlist(agec5,"0004","0517") & agec3==""
-	replace agec11="0004" if agec5=="0004" & agec11==""
-	replace agec11="0514" if agec5=="0517" & agec11==""
-	assert agec11!="" & agec3!=""
-	merge m:1 state county sex agec11 using control_age_tmp.dta, assert(3) nogen
-// RAKE by detailed age/sex (gen pwt1) THEN by age/sex/dis (gen pwt2)
+	** add control totals by disability
+	foreach d in  "dis" "dear" "deye" "dphy" "drem" "ddrs" "dout" { 
+		merge m:1 stcofips year sex agec5 `d' using control_`d'_tmp.dta, assert(1 3) nogen
+	}
+	** add control totals by dnum
+	merge m:1 stcofips year agec3 dnum using control_dnum_tmp.dta, assert(3) nogen 
+	** add control totals by age/sex
+	merge m:1 stcofips year sex agec11 using control_age_tmp.dta, assert(3) nogen
+//
+// RAKE by detailed age/sex (gen pwt1) THEN by age/numdis THEN by age/sex/dis (gen pwt2)
 	set seed 1337170
-	survwgt poststratify pwgtp, by(state county agec11 sex) totvar(a_n) gen(pwt1)
+	survwgt poststratify pwgtp, by(stcofips agec11 sex) totvar(a_n) gen(pwt1)
+	
+	
+	
 	set seed 1337170
-	survwgt poststratify pwt1, by(state county agec5 sex dis) totvar(dis_n) gen(pwt2)
-	* could add a weight step for tot inst and noncivil pop by age.	
+	survwgt poststratify pwt1, by(stcofips agec3 dnum) totvar(dnum_n) gen(pwt3)
+	set seed 1337170
+	survwgt poststratify pwt3, by(stcofips agec5 sex dis) totvar(dis_n) gen(pwt2)
 // CHECK totals
-	version 13: table county if state=="41", contents(sum pwt1 sum pwt2 mean atot) // note that the disaby tot won't confirm.
-	version 13: table county if state=="41" & dis==1, contents(sum pwgtp sum pwt2 mean dis1_tot) 
+	version 13: table stcofips, contents(sum pwt1 sum pwt2 mean atot) // note that the disaby tot won't confirm.
+	version 13: table stcofips if dis==1, contents(sum pwgtp sum pwt2 mean dis1_tot) 
+// RAKE by deatiled disability and number of disabilities, then by age/sex/dis
+	*set seed 1337170
+	*survwgt poststratify pwt2, by(state county agec11 sex) totvar(a_n) gen(pwt1)
 // CLEAN and SAVE
-	keep state county sex d* agep atot pwt* pwgtp*
+	keep stcofips sex d* agep atot a_n dis_n pwt* pwgtp* agec5 agec3
 	egen byte agecat=cut(agep),at(0,5,15,18,20,25,30,40,50,60,65,99)
-	destring state, replace
-	replace county=strofreal(state,"%02.0f")+county 
-	destring county, replace 
-	drop state 
-	compress
+	destring stcofips, replace // svy total, over(X) requires num.
 	svyset [iw=pwt2], sdr(pwgtp1-pwgtp80) vce(sdr)
+	compress
 	save 05_ipf_pums_v01_disaby.dta, replace
 }
-	
-// tables for OHA, using pwt2, with additional control step if necessary.
-	** count dnum
-	for var ddrs dear deye dout dphy drem: gen Xd=X*-1+2
-	egen dnum=rowtotal(ddrsd deard deyed doutd dphyd dremd)
-	tab dnum dis
-	drop ddrsd deard deyed doutd dphyd dremd
-	fillin state county agec3 dnum 
-	merge m:1 state county agec3 dnum using control_dnum_tmp.dta, assert(1 3) 
-	drop if (_fillin & _merge!=3) // | (_merge==3 & `d'_n==0)
-	qui for var pwgtp pwgtp1-pwgtp80: replace X=0 if _fillin==1 
-	drop _fillin _merge
-	merge m:1 state county sex agec11 using control_age_tmp.dta, assert(3) nogen
 
-	
-
-	else use 05_ipf_pums_v01_disaby.dta, clear
+//	
+// TABLES for OHA, using pwt2, with additional control steps for each disability, if necessary.
+// disdi
+	use 05_ipf_pums_v01_disaby.dta, clear
 	gen byte one=1 
-// totals by disability (don't need by sex)
-	mat master=J(1,14,.)
-	mat colnames master="county" "sex" "disvar" "disval" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+	mat master=J(1,13,.)
+	mat colnames master="stcofips" "sex" "disdi" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+	sort stcofips agecat disdi
+	fillin stcofips agecat disdi // rectangularize (to ensure 37 rows for each svy total results matrix)
+	qui for var pwt2 pwgtp1-pwgtp80: replace X=0 if X==. 
+	drop _fillin
 	levelsof agecat, local(ages)
-	local i=0
-	foreach d of varlist disdi da7compacsall da4cat dearoicv2 deyeoicv2 dremoicv2 dphyoicv2 ddrsoicv2 doutoicv2 { 
-		sort county sex agecat `d'
-		fillin county sex agecat `d'
-		qui for var pwt2 pwgtp1-pwgtp80: replace X=0 if X==. 
-		local ++i
-		levelsof `d', local(levels) // or >0 to exclude non-disabled?
-		foreach l of local levels {
-			nois di _newline ". Disab: `d':`l' | Age: " _cont
-			foreach a of local ages {
-				nois di "`a'." _cont
-				ereturn clear
-				svy sdr: total one if agecat==`a' & `d'==`l', over(county) 
-				mat table=r(table)
-				mat table=table'
-				mata: st_matrix("county", range(1,37,1))
-				mat sex=J(37,1,0)
-				mat disvar=J(37,1,`i')
-				mat disval=J(37,1,`l')
-				mat agecat=J(37,1,`a')
-				mat result=county,sex,disvar,disval,agecat,table
-				mat master=master\result
-			}
+	qui forvalues d=0/1 {
+		nois di _newline ". Disab: disdi:`d' | Age: " _cont
+		foreach a of local ages {
+			nois di "`a'." _cont
+			ereturn clear
+			svy sdr: total one if agecat==`a' & disdi==`d', over(stcofips) 
+			mat table=r(table)
+			mat table=table'
+			mata: st_matrix("stcofips", range(1,37,1))
+			mat sex=J(37,1,0)
+			mat disdi=J(37,1,`d')
+			mat agecat=J(37,1,`a')
+			mat result=stcofips,sex,disdi,agecat,table
+			mat master=master\result
 		}
-		drop if _fillin==1
-		drop _fillin
 	}
 	drop _all
 	svmat master, names(col)
-	tostring disvar, replace
-	foreach d in "1 disdi" "2 dearoicv2" "3 deyeoicv2" "4 dremoicv2" "5 dphyoicv2" "6 ddrsoicv2" "7 doutoicv2" "8 da7compacsall" "9 da4cat" {
-		tokenize `d'
-		replace disvar="`2'" if disvar=="`1'"
-	}
 	save results_agesex_disdi.dta, replace
 	** clean for excel export
-	drop if county==.
-	collapse (sum) b, by(county disaby agecat)
-	reshape wide b, i(county agecat) j(disaby)
-	rename *1 *disy
-	reshape wide bdisy, i(county) j(agecat) 
+	drop if stcofips==.
+	collapse (sum) b, by(stcofips disdi agecat)
+	reshape wide b, i(stcofips agecat) j(disdi )
+	rename b* disdi*_
+	reshape wide disdi0_ disdi1_, i(stcofips) j(agecat) 
 	order *, seq
-	order county
+	order stcofips
+// da4cat (none/one/two+/severe)
+	use 05_ipf_pums_v01_disaby.dta, clear
+	gen byte one=1 
+	mat master=J(1,13,.)
+	mat colnames master="stcofips" "sex" "da4cat" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+	sort stcofips agecat da4cat
+	fillin stcofips agecat da4cat // rectangularize (to ensure 37 rows for each svy total results matrix)
+	qui for var pwt2 pwgtp1-pwgtp80: replace X=0 if X==. 
+	drop _fillin
+	levelsof agecat, local(ages)
+	levelsof da4cat, local(ds)
+	qui foreach d of local ds {
+		nois di _newline ". Disab: da4cat:`d' | Age: " _cont
+		foreach a of local ages {
+			if `d'==3 & `a'==0 { // no iadl/severe for age 0-4
+				mat table=J(1,37,0)
+				exit
+			}
+			else {
+				nois di "`a'." _cont
+				ereturn clear
+				svy sdr: total one if agecat==`a' & da4cat==`d', over(stcofips) 
+				*if _rc mat table=J(1,37,0) // if all zeros, svy total will fail.
+				mat table=r(table)
+			}
+			mat table=table'
+			mata: st_matrix("stcofips", range(1,37,1))
+			mat sex=J(37,1,0)
+			mat da4cat=J(37,1,`d')
+			mat agecat=J(37,1,`a')
+			mat result=stcofips,sex,da4cat,agecat,table
+			mat master=master\result
+		}
+	}
+	drop _all
+	svmat master, names(col)
+	save results_agesex_da4cat.dta, replace
+	** clean for excel export
+	drop if stcofips==.
+	collapse (sum) b, by(stcofips da4cat agecat)
+	reshape wide b, i(stcofips agecat) j(da4cat )
+	rename b* da4cat*_
+	reshape wide da4cat0_ da4cat1_ da4cat2_ da4cat3_, i(stcofips) j(agecat) 
+	order *, seq
+	order stcofips
+// da7compacsall 
 
+	
+	
+	
+	
 /***
  *                                                                                         
  *    .---.                                                                                
