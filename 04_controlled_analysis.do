@@ -4,7 +4,7 @@
 ** compile tables with MOEs (WIP)
 ** export dataset
 
-** v04: add language ~ add regions ~ change disability coding.
+** v04: add language ~ add regions ~ improve disability coding.
 ** v03: add disability ~ currently separate modules, but count consider combining into one series of rakes.
 ** v02: change to faster, consistent totals by county
 ** v01: first version, sequential totals 1/36
@@ -290,46 +290,109 @@ browse county bAfrAm-bWhiteOth
 	At a county level – for very small counties… the same except likely DA7compACSall – please advise after you can run some tables…
 */ 
 
-// update weights for disability tables
-	cap confirm file 05_ipf_pums_v01_disaby.dta
 // obtain control totals by age/sex/disaby
+	foreach t in "dis 18101" "dear 18102" "deye 18103" "drem 18104" "dphy 18105" "ddrs 18106" "dout 18107" {
+		tokenize `t'
+		tempfile tmp
+		local T="B`2'"
+		censusapi, url("https://api.census.gov/data/2021/acs/acs5?get=group(`T')&for=county:*&in=state:41")
+		save `tmp', replace
+		censusapi, url("https://api.census.gov/data/2021/acs/acs5?get=group(`T')&for=county:011&in=state:53")
+		append using `tmp'
+		rename b`2'_*e e*
+		tostring state, replace format(%02.0f) 
+		tostring county, replace format(%03.0f)
+		if "`1'"=="dout" { // 3 age groups
+			gen `1'1_1834_1=e004
+			gen `1'1_1834_2=e017
+			gen `1'1_3564_1=e007
+			gen `1'1_3564_2=e020
+			gen `1'1_6599_1=e010+e013
+			gen `1'1_6599_2=e023+e026
+			gen `1'2_1834_1=e005
+			gen `1'2_1834_2=e018
+			gen `1'2_3564_1=e008
+			gen `1'2_3564_2=e021
+			gen `1'2_6599_1=e011+e014
+			gen `1'2_6599_2=e024+e027
+		}
+		else if inlist("`1'","ddrs","dphy","drem") { // 4 age groups
+			gen `1'1_0517_1=e004
+			gen `1'1_1834_1=e007
+			gen `1'1_3564_1=e010
+			gen `1'1_6599_1=e013+e016
+			gen `1'2_0517_1=e005
+			gen `1'2_1834_1=e008
+			gen `1'2_3564_1=e011
+			gen `1'2_6599_1=e014+e017
+			gen `1'1_0517_2=e020
+			gen `1'1_1834_2=e023
+			gen `1'1_3564_2=e026
+			gen `1'1_6599_2=e029+e032
+			gen `1'2_0517_2=e021
+			gen `1'2_1834_2=e024
+			gen `1'2_3564_2=e027
+			gen `1'2_6599_2=e030+e033
+		}
+		else if inlist("`1'","deye","dear","dis") { // 5 age groups
+			gen `1'1_0004_1=e004
+			gen `1'1_0517_1=e007
+			gen `1'1_1834_1=e010
+			gen `1'1_3564_1=e013
+			gen `1'1_6599_1=e016+e019
+			gen `1'2_0004_1=e005
+			gen `1'2_0517_1=e008
+			gen `1'2_1834_1=e011
+			gen `1'2_3564_1=e014
+			gen `1'2_6599_1=e017+e020
+			gen `1'1_0004_2=e023
+			gen `1'1_0517_2=e026
+			gen `1'1_1834_2=e029
+			gen `1'1_3564_2=e032
+			gen `1'1_6599_2=e035+e038
+			gen `1'2_0004_2=e024
+			gen `1'2_0517_2=e027
+			gen `1'2_1834_2=e030
+			gen `1'2_3564_2=e033
+			gen `1'2_6599_2=e036+e039
+		}
+		keep state county `1'1_* `1'2_*
+		reshape long `1'1_@_1 `1'1_@_2 `1'2_@_1 `1'2_@_2, i(state county) j(agecat) string
+		reshape long `1'1__@ `1'2__@, i(state county agecat) j(sex)
+		reshape long `1'@__, i(state county agecat sex) j(`1')
+		ren `1'__ `1'_n // clearly label population count variable
+		rename agecat agec5 // even though not all groups are used, these 
+		egen `1'1_tot=sum(`1'_n) if `1'==1, by(state county)
+		gen int year=2021 
+		save control_`1'_tmp.dta, replace // merge by state county year agec5 `i'(1=yes/2=no/.=na)
+	}
+// obtain control totals by age/sex/n_of_disaby
 	tempfile tmp
-	local T="B18101"
+	local T="C18108"
 	censusapi, url("https://api.census.gov/data/2021/acs/acs5?get=group(`T')&for=county:*&in=state:41")
 	save `tmp', replace
 	censusapi, url("https://api.census.gov/data/2021/acs/acs5?get=group(`T')&for=county:011&in=state:53")
 	append using `tmp'
+	rename c18108_*e e*
 	tostring state, replace format(%02.0f) 
 	tostring county, replace format(%03.0f)
-	gen disaby_0004_1=b18101_004e
-	gen disaby_0517_1=b18101_007e
-	gen disaby_1834_1=b18101_010e
-	gen disaby_3564_1=b18101_013e
-	gen disaby_6599_1=b18101_016e+b18101_019e
-	gen disaby_0004_2=b18101_023e
-	gen disaby_0517_2=b18101_026e
-	gen disaby_1834_2=b18101_029e
-	gen disaby_3564_2=b18101_032e
-	gen disaby_6599_2=b18101_035e+b18101_038e
-	gen disabn_0004_1=b18101_005e
-	gen disabn_0517_1=b18101_008e
-	gen disabn_1834_1=b18101_011e
-	gen disabn_3564_1=b18101_014e
-	gen disabn_6599_1=b18101_017e+b18101_020e
-	gen disabn_0004_2=b18101_024e
-	gen disabn_0517_2=b18101_027e
-	gen disabn_1834_2=b18101_030e
-	gen disabn_3564_2=b18101_033e
-	gen disabn_6599_2=b18101_036e+b18101_039e
-	keep state county disaby_* disabn_*
-	reshape long disaby_0004_ disaby_0517_ disaby_1834_ disaby_3564_ disaby_6599_ ///
-				 disabn_0004_ disabn_0517_ disabn_1834_ disabn_3564_ disabn_6599_, i(state county) j(sex)
-	reshape long disaby_@_ disabn_@_, i(state county sex) j(agecat) string
-	rename agecat agec5
-	egen disabytot=sum(disaby__), by(state county)
-	egen disabntot=sum(disabn__), by(state county)
-	gen int year=2021 
-	save control_dis_tmp.dta, replace
+	gen dnum1_0017=e003
+	gen dnum2_0017=e004
+	gen dnum0_0017=e005
+	gen dnum1_1864=e007
+	gen dnum2_1864=e008
+	gen dnum0_1864=e009
+	gen dnum1_6599=e011
+	gen dnum2_6599=e012
+	gen dnum0_6599=e013
+	keep state county dnum*
+	reshape long dnum0_@ dnum1_@ dnum2_@, i(state county) j(agecat) string
+	reshape long dnum@_, i(state county agecat) j(dnum)
+	ren dnum_ dnum_n
+	ren agecat agec3
+	egen dnum2tot=sum(dnum_n) if dnum==2, by(state county)
+	gen int year=2021
+	save control_dnum_tmp.dta, replace
 // obtain control totals by detailed age/sex
 	tempfile tmp
 	local T="B01001"
@@ -366,11 +429,20 @@ browse county bAfrAm-bWhiteOth
 	reshape long a_@_, i(state county sex) j(agecat) string
 	rename agecat agec11
 	egen atot=sum(a__), by(state county)
+	ren a__ a_n // N by age
 	gen int year=2021
 	save control_age_tmp.dta, replace
+
+//
 // LOAD pums data from prior step and ADD control totals
-	use state county sex agep dis* disdi da4cat da7compacsall d*oicv2 pwgtp* using 5ACS21_ORWA_RELDPRI.dta, clear 
+cap confirm file 05_ipf_pums_v01_disaby.dta
+if _rc {
+	use state county sex agep dis deye dear ddrs dphy drem dout disdi da4cat da7compacsall d*oicv2 pwgtp* using 5ACS21_ORWA_RELDPRI.dta, clear 
 	gen int year=2021
+	gen agec3=""
+	replace agec3="0017" if inrange(agep,0,17)
+	replace agec3="1864" if inrange(agep,18,64)
+	replace agec3="6599" if inrange(agep,65,99)
 	gen agec5=""
 	replace agec5="0004" if inrange(agep,0,4)
 	replace agec5="0517" if inrange(agep,5,17)
@@ -389,26 +461,28 @@ browse county bAfrAm-bWhiteOth
 	replace agec11="5059" if inrange(agep,50,59)
 	replace agec11="6064" if inrange(agep,60,64)
 	replace agec11="6599" if inrange(agep,65,99)
-	merge m:1 state county sex agec5 using control_dis_tmp.dta, assert(3) nogen
+	fillin state county sex agec5 dis
+	merge m:1 state county sex agec5 dis using control_dis_tmp.dta, assert(1 3) // 1=na.
+	drop if _fillin & _merge==1
+	qui for var pwgtp pwgtp1-pwgtp80: replace X=0 if _fillin==1 & _merge==3
+	drop _fillin
+	** update agec3 and agec11
+	replace agec3="0017" if inlist(agec5,"0004","0517") & agec3==""
+	replace agec11="0004" if agec5=="0004" & agec11==""
+	replace agec11="0514" if agec5=="0517" & agec11==""
+	assert agec11!="" & agec3!=""
 	merge m:1 state county sex agec11 using control_age_tmp.dta, assert(3) nogen
-// RAKE by detailed age/sex (gen pwt1) THEN by disability/age/sex (gen pwt2)
+// RAKE by detailed age/sex (gen pwt1) THEN by age/sex/dis (gen pwt2)
 	set seed 1337170
-	survwgt poststratify pwgtp, by(state county agec11 sex) totvar(a__) gen(pwt1)
-	clonevar pwt2=pwt1
+	survwgt poststratify pwgtp, by(state county agec11 sex) totvar(a_n) gen(pwt1)
 	set seed 1337170
-	survwgt poststratify pwt1 if dis==1, by(state county agec5 sex) totvar(disaby__) gen(tmpwt)
-	replace pwt2=tmpwt if dis==1
-	drop tmpwt
-	set seed 1337170
-	survwgt poststratify pwt1 if dis==0, by(state county agec5 sex) totvar(disabn__) gen(tmpwt)
-	replace pwt2=tmpwt if dis==0
-	drop tmpwt
+	survwgt poststratify pwt1, by(state county agec5 sex dis) totvar(dis_n) gen(pwt2)
 	* could add a weight step for tot inst and noncivil pop by age.	
 // CHECK totals
 	version 13: table county if state=="41", contents(sum pwt1 sum pwt2 mean atot) // note that the disaby tot won't confirm.
-	version 13: table county if state=="41" & dis==1, contents(sum pwgtp sum pwt2 mean disabytot)
+	version 13: table county if state=="41" & dis==1, contents(sum pwgtp sum pwt2 mean dis1_tot) 
 // CLEAN and SAVE
-	keep state county sex da7compacsall disdi da4cat d*oicv2 disabytot agep pwt* pwgtp*
+	keep state county sex d* agep atot pwt* pwgtp*
 	egen byte agecat=cut(agep),at(0,5,15,18,20,25,30,40,50,60,65,99)
 	destring state, replace
 	replace county=strofreal(state,"%02.0f")+county 
@@ -417,7 +491,23 @@ browse county bAfrAm-bWhiteOth
 	compress
 	svyset [iw=pwt2], sdr(pwgtp1-pwgtp80) vce(sdr)
 	save 05_ipf_pums_v01_disaby.dta, replace
-	}
+}
+	
+// tables for OHA, using pwt2, with additional control step if necessary.
+	** count dnum
+	for var ddrs dear deye dout dphy drem: gen Xd=X*-1+2
+	egen dnum=rowtotal(ddrsd deard deyed doutd dphyd dremd)
+	tab dnum dis
+	drop ddrsd deard deyed doutd dphyd dremd
+	fillin state county agec3 dnum 
+	merge m:1 state county agec3 dnum using control_dnum_tmp.dta, assert(1 3) 
+	drop if (_fillin & _merge!=3) // | (_merge==3 & `d'_n==0)
+	qui for var pwgtp pwgtp1-pwgtp80: replace X=0 if _fillin==1 
+	drop _fillin _merge
+	merge m:1 state county sex agec11 using control_age_tmp.dta, assert(3) nogen
+
+	
+
 	else use 05_ipf_pums_v01_disaby.dta, clear
 	gen byte one=1 
 // totals by disability (don't need by sex)
