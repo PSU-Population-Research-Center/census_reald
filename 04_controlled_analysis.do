@@ -4,6 +4,7 @@
 ** compile tables with MOEs (WIP)
 ** export dataset
 
+** v06: frozen version from export of deliverables (2024-01-16)
 ** v05: fixed disability code (tbd: add language, regions)
 ** v04: wip to add disability
 ** v03: wip to add disbaility
@@ -554,39 +555,80 @@ if _rc {
 // RAKE by detailed age/sex (gen pwt1) THEN by age/numdis THEN by age/sex/dis (gen pwt2)
 	set seed 1337170
 	survwgt poststratify pwgtp, by(stcofips agec11 sex) totvar(a_n) gen(pwt1)
-	
-	
-	
 	set seed 1337170
-	survwgt poststratify pwt1, by(stcofips agec3 dnum) totvar(dnum_n) gen(pwt3)
+	survwgt poststratify pwt1, by(stcofips agec3 dnum) totvar(dnum_n) gen(pwt2)
 	set seed 1337170
-	survwgt poststratify pwt3, by(stcofips agec5 sex dis) totvar(dis_n) gen(pwt2)
+	survwgt poststratify pwt2, by(stcofips agec5 sex dis) totvar(dis_n) gen(pwt3)
+	replace pwt3=0 if pwt3==.
+// RAKE by specific conditions ~ 6 iterations.
+/*
+local i=4 // starting number
+while `i'<=30 { // ending number (end-start = N iterations)
+	local h=`i'-1
+	clonevar pwt`i'=pwt`h'
+	set seed 1337170
+	survwgt poststratify pwt`i' if deye<., by(stcofips agec5 sex deye) totvar(deye_n) gen(tmp)
+	replace pwt`i'=tmp if deye<.
+	drop tmp
+	set seed 1337170
+	survwgt poststratify pwt`i' if dear<., by(stcofips agec5 sex dear) totvar(dear_n) gen(tmp)
+	replace pwt`i'=tmp if dear<. 
+	drop tmp
+	set seed 1337170
+	survwgt poststratify pwt`i' if dphy<. & agep>=5, by(stcofips agec5 sex dphy) totvar(dphy_n) gen(tmp)
+	replace pwt`i'=tmp if dphy<. & agep>=5
+	drop tmp
+	set seed 1337170
+	survwgt poststratify pwt`i' if drem<. & agep>=5, by(stcofips agec5 sex drem) totvar(drem_n) gen(tmp)
+	replace pwt`i'=tmp if drem<. & agep>=5
+	drop tmp
+	set seed 1337170
+	survwgt poststratify pwt`i' if ddrs<. & agep>=5, by(stcofips agec5 sex ddrs) totvar(ddrs_n) gen(tmp)
+	replace pwt`i'=tmp if ddrs<. & agep>=5
+	drop tmp
+	set seed 1337170
+	survwgt poststratify pwt`i' if dout<. & agep>=18, by(stcofips agec5 sex dout) totvar(dout_n) gen(tmp)
+	replace pwt`i'=tmp if dout<. & agep>=18
+	drop tmp
+	set seed 1337170
+	survwgt poststratify pwt`i', by(stcofips agec11 sex) totvar(a_n) replace
+	set seed 1337170
+	survwgt poststratify pwt`i', by(stcofips agec3 dnum) totvar(dnum_n) replace
+	set seed 1337170
+	survwgt poststratify pwt`i', by(stcofips agec5 sex dis) totvar(dis_n) replace
+	replace pwt`i'=0 if pwt`i'==.
+	version 13: table stcofips if deye==1, contents(sum pwgtp sum pwt3 sum pwt`h' sum pwt`i' mean deye1_tot) 
+	local ++i
+}
+*/
 // CHECK totals
-	version 13: table stcofips, contents(sum pwt1 sum pwt2 mean atot) // note that the disaby tot won't confirm.
-	version 13: table stcofips if dis==1, contents(sum pwgtp sum pwt2 mean dis1_tot) 
-// RAKE by deatiled disability and number of disabilities, then by age/sex/dis
+	*version 13: table stcofips, contents(sum pwt1 sum pwt3 mean atot) // note that the disaby tot won't confirm.
+	version 13: table stcofips, contents(sum pwt1 sum pwt3 sum pwt30 mean atot) 
+	*version 13: table stcofips if dis==1, contents(sum pwgtp sum pwt3 sum pwt4 mean dis1_tot) 
+	version 13: table stcofips if dis==1, contents(sum pwgtp sum pwt3 sum pwt30 mean dis1_tot) 
+// RAKE by detailed age/sex
 	*set seed 1337170
 	*survwgt poststratify pwt2, by(state county agec11 sex) totvar(a_n) gen(pwt1)
 // CLEAN and SAVE
-	keep stcofips sex d* agep atot a_n dis_n pwt* pwgtp* agec5 agec3
+	keep stcofips sex d* agep atot a_n dis_n pwt1 pwt2 pwt3 pwt30 pwgtp* agec5 agec3
 	egen byte agecat=cut(agep),at(0,5,15,18,20,25,30,40,50,60,65,99)
 	destring stcofips, replace // svy total, over(X) requires num.
-	svyset [iw=pwt2], sdr(pwgtp1-pwgtp80) vce(sdr)
+	svyset [iw=pwt30], sdr(pwgtp1-pwgtp80) vce(sdr) // pwt3: agesex->dnum->disdi pwt4: +conditions.
 	compress
 	save 05_ipf_pums_v01_disaby.dta, replace
 }
 
 //	
-// TABLES for OHA, using pwt2, with additional control steps for each disability, if necessary.
+// TABLES for OHA
 // disdi
 	use 05_ipf_pums_v01_disaby.dta, clear
-	gen byte one=1 
 	mat master=J(1,13,.)
 	mat colnames master="stcofips" "sex" "disdi" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
 	sort stcofips agecat disdi
 	fillin stcofips agecat disdi // rectangularize (to ensure 37 rows for each svy total results matrix)
-	qui for var pwt2 pwgtp1-pwgtp80: replace X=0 if X==. 
+	qui for var pwt3 pwgtp1-pwgtp80: replace X=0 if X==. 
 	drop _fillin
+	gen byte one=1 
 	levelsof agecat, local(ages)
 	qui forvalues d=0/1 {
 		nois di _newline ". Disab: disdi:`d' | Age: " _cont
@@ -606,7 +648,7 @@ if _rc {
 	}
 	drop _all
 	svmat master, names(col)
-	save results_agesex_disdi.dta, replace
+	save results_disdi.dta, replace
 	** clean for excel export
 	drop if stcofips==.
 	collapse (sum) b, by(stcofips disdi agecat)
@@ -615,32 +657,32 @@ if _rc {
 	reshape wide disdi0_ disdi1_, i(stcofips) j(agecat) 
 	order *, seq
 	order stcofips
-// da4cat (none/one/two+/severe)
+
+//
+// here onwards, there ar ereferences to specific conditoins.
+	
+// da4cat (none/one/two+/severe) 
 	use 05_ipf_pums_v01_disaby.dta, clear
-	gen byte one=1 
 	mat master=J(1,13,.)
 	mat colnames master="stcofips" "sex" "da4cat" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
 	sort stcofips agecat da4cat
 	fillin stcofips agecat da4cat // rectangularize (to ensure 37 rows for each svy total results matrix)
-	qui for var pwt2 pwgtp1-pwgtp80: replace X=0 if X==. 
+	qui for var pwt30 pwgtp1-pwgtp80: replace X=0 if X==. 
 	drop _fillin
+	gen byte one=1 
 	levelsof agecat, local(ages)
 	levelsof da4cat, local(ds)
 	qui foreach d of local ds {
 		nois di _newline ". Disab: da4cat:`d' | Age: " _cont
 		foreach a of local ages {
+			nois di "`a'." _cont
 			if `d'==3 & `a'==0 { // no iadl/severe for age 0-4
-				mat table=J(1,37,0)
-				exit
+				mat table=J(37,9,0)
 			}
 			else {
-				nois di "`a'." _cont
-				ereturn clear
 				svy sdr: total one if agecat==`a' & da4cat==`d', over(stcofips) 
-				*if _rc mat table=J(1,37,0) // if all zeros, svy total will fail.
-				mat table=r(table)
+				mat table=r(table)'
 			}
-			mat table=table'
 			mata: st_matrix("stcofips", range(1,37,1))
 			mat sex=J(37,1,0)
 			mat da4cat=J(37,1,`d')
@@ -651,7 +693,7 @@ if _rc {
 	}
 	drop _all
 	svmat master, names(col)
-	save results_agesex_da4cat.dta, replace
+	save results_da4cat.dta, replace
 	** clean for excel export
 	drop if stcofips==.
 	collapse (sum) b, by(stcofips da4cat agecat)
@@ -660,9 +702,103 @@ if _rc {
 	reshape wide da4cat0_ da4cat1_ da4cat2_ da4cat3_, i(stcofips) j(agecat) 
 	order *, seq
 	order stcofips
-// da7compacsall 
 
+// da7compacsall 
+	use 05_ipf_pums_v01_disaby.dta, clear
+	mat master=J(1,13,.)
+	mat colnames master="stcofips" "sex" "da7compacsall" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+	sort stcofips agecat da7compacsall
+	fillin stcofips agecat da7compacsall // rectangularize (to ensure 37 rows for each svy total results matrix)
+	qui for var pwt30 pwgtp1-pwgtp80: replace X=0 if X==. 
+	drop _fillin
+	gen byte one=1 
+	levelsof agecat, local(ages)
+	levelsof da7compacsall, local(ds)
+	qui foreach d of local ds {
+		nois di _newline ". Disab: da7compacsall:`d' | Age: " _cont
+		foreach a of local ages {
+			nois di "`a'." _cont
+			if `a'==0 & inlist(`d',3,4,6) {
+				mat table=J(37,9,0) // all zeros
+			}
+			else {
+				svy sdr: total one if agecat==`a' & da7compacsall==`d', over(stcofips) 
+				mat table=r(table)'
+			}
+			mata: st_matrix("stcofips", range(1,37,1))
+			mat sex=J(37,1,0)
+			mat da7compacsall=J(37,1,`d')
+			mat agecat=J(37,1,`a')
+			mat result=stcofips,sex,da7compacsall,agecat,table
+			mat master=master\result
+		}
+	}
+	drop _all
+	svmat master, names(col)
+	save results_da7compacsall.dta, replace
+	** clean for excel export
+	drop if stcofips==.
+	collapse (sum) b, by(stcofips da7compacsall agecat)
+	reshape wide b, i(stcofips agecat) j(da7compacsall )
+	rename b* da7compacsall*_
+	reshape wide da7compacsall0_ da7compacsall1_ da7compacsall2_ da7compacsall3_ ///
+				 da7compacsall4_ da7compacsall5_ da7compacsall6_, i(stcofips) j(agecat) 
+	order *, seq
+	order stcofips
+
+// d*oicv2 
+	use 05_ipf_pums_v01_disaby.dta, clear
+	foreach v in "dear" "deye"  "dphy" "drem" "ddrs" "dout" {  
+		preserve
+		mat master=J(1,13,.)
+		mat colnames master="stcofips" "sex" "`v'oicv2" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+		sort stcofips agecat `v'oicv2
+		fillin stcofips agecat `v'oicv2 // rectangularize (to ensure 37 rows for each svy total results matrix)
+		qui for var pwt30 pwgtp1-pwgtp80: replace X=0 if X==. 
+		drop _fillin
+		gen byte one=1 
+		levelsof agecat, local(ages)
+		forvalues d=0/2 {
+			nois di _newline ". Disab: `v'oicv2:`d' | Age: " _cont
+			qui foreach a of local ages {
+				nois di "`a'." _cont
+				if (`a'==0 & inlist("`v'","dphy","drem","ddrs","dout")) | ///
+				   (`a'==5 & inlist("`v'","dout")) {
+					mat table=J(37,9,0)
+				}
+				else {
+					svy sdr: total one if agecat==`a' & `v'oicv2==`d', over(stcofips) 
+					mat table=r(table)'
+				}
+				mata: st_matrix("stcofips", range(1,37,1))
+				mat sex=J(37,1,0)
+				mat `v'oicv2=J(37,1,`d')
+				mat agecat=J(37,1,`a')
+				mat result=stcofips,sex,`v'oicv2,agecat,table
+				mat master=master\result
+			}
+		}
+		drop one
+		drop _all
+		svmat master, names(col)
+		save results_`v'oicv2.dta, replace
+		restore
+	}
+	** clean for excel export
+	pause on
+	foreach v in "dear" "deye" "dphy" "drem" "ddrs" "dout" {
+		use if stcofips<. using results_`v'oicv2.dta, clear
+		collapse (sum) b, by(stcofips `v'oicv2 agecat)
+		reshape wide b, i(stcofips agecat) j(`v'oicv2 )
+		rename b* `v'oicv2*_
+		reshape wide `v'oicv20_ `v'oicv21_ `v'oicv22_, i(stcofips) j(agecat) 
+		order *, seq
+		order stcofips
+		browse
+		pause
+	}
 	
+
 	
 	
 	
