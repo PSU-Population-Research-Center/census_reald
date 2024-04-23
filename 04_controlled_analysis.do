@@ -4,55 +4,107 @@
 ** compile tables with MOEs (WIP)
 ** export dataset
 
-//
-// data
-use 5ACS21_ORWA_RELDPRI.dta, clear 
-merge m:1 year state county using oha_reald_controldata.dta, assert(3) 
-destring county, replace
-gen coalpha=(county+1)/2
-sum coalpha, mean
-assert `r(min)'==1 & `r(max)'==36
-mata: st_matrix("master", range(1,36,1)) // empty matrix with county alphabetically sorted order
+** tbd.
+** round results and check against county B01001 total by age/sex and fix discrepancies.
 
-//
-// FIRST Rake by appx age/sex/race-eth >> convert pwgtp to pwt1
-cap drop pwt1
-clonevar pwt1=pwgtp
-local i=0
-_dots 0, title(first rake: age/sex/race-eth) reps(180)
-set seed 13371701 
-qui foreach a in "0004" "0514" "1517" "1819" "2024" "2529" "3034" "3544" "4554" "5564" "6599" {
-	foreach s in "male" "female" {
-		foreach r in "wa" "ba" "na" "aa" "pa" "oa" "mr" "wanh" "h" {
-			survwgt poststratify pwgtp if fa`a'_`s'_`r'==1, by(state county) totvar(a`a'_`s'_`r'_e) gen(tmpwt) // reweight to match county total by age*sex 
-			replace pwt1=tmpwt if fa`a'_`s'_`r'==1 
+// generate raked file
+cap prog drop realdfile
+prog def realdfile
+	// LOAD pums data from prior step and ADD control totals
+	use 5ACS21_ORWA_RELDPRI.dta, clear 
+	merge m:1 year state county using oha_reald_controldata.dta, assert(3) nogen
+	destring county, replace
+	gen coalpha=(county+1)/2
+	sum coalpha, mean
+	assert `r(min)'==1 & `r(max)'==36
+	// FIRST, rake by appx age/sex/race-eth >> convert pwgtp to pwt1
+	cap drop pwt1
+	clonevar pwt1=pwgtp
+	local i=0
+	_dots 0, title(first rake: age/sex/race-eth) reps(180)
+	set seed 13371701 
+	qui foreach a in "0004" "0514" "1517" "1819" "2024" "2529" "3034" "3544" "4554" "5564" "6599" {
+		foreach s in "male" "female" {
+			foreach r in "wa" "ba" "na" "aa" "pa" "oa" "mr" "wanh" "h" { 
+				survwgt poststratify pwgtp if fa`a'_`s'_`r'==1, by(state county) totvar(a`a'_`s'_`r'_e) gen(tmpwt) // reweight to match county total by age*sex 
+				replace pwt1=tmpwt if fa`a'_`s'_`r'==1 
+				drop tmpwt
+				local ++i
+				nois _dots `i' 0
+			}
+		}
+	}
+	// SECOND, rake by disability status
+	// THIRD, rake by language status
+	// FINAL rake by detailed age/sex groups >> convert pwt1 to pwt2
+	cap drop pwt2
+	clonevar pwt2=pwt1 // base the age rake off the prior pov*age rake
+	local i=0
+	_dots 0, title(First rake: age/sex) reps(20)
+	set seed 13371701 
+	qui foreach a in "0004" "0514" "1517" "1819" "2024" "2529" "3039" "4049" "5059" "6064" "6599" { 
+		foreach s in "male" "female" {
+			survwgt poststratify pwt1 if fa`a'_`s'==1, by(state county) totvar(a`a'_`s'_e) gen(tmpwt) 
+			replace pwt2=tmpwt if fa`a'_`s'==1 
 			drop tmpwt
 			local ++i
 			nois _dots `i' 0
 		}
-	}
-}
-// 
-// SECOND rake by detailed age/sex groups >> convert pwt1 to pwt2
-cap drop pwt2
-clonevar pwt2=pwt1 // base the age rake off the prior pov*age rake
-local i=0
-_dots 0, title(First rake: age/sex) reps(20)
-set seed 13371701 
-qui foreach a in "0004" "0514" "1517" "1819" "2024" "2529" "3039" "4049" "5059" "6064" "6599" { 
-	foreach s in "male" "female" {
-		survwgt poststratify pwt1 if fa`a'_`s'==1, by(state county) totvar(a`a'_`s'_e) gen(tmpwt) 
-		replace pwt2=tmpwt if fa`a'_`s'==1 
-		drop tmpwt
-		local ++i
-		nois _dots `i' 0
-	}
-} 
-// LAST control to totalpop 
-*set seed 13371701 
-*survwgt poststratify pwt2, by(state county) totvar(totpop_e) replace
-version 13: table county if state=="41", contents(sum pwgtp sum pwt1 sum pwt2 mean totpop) format(%7.0fc) row // pwt2 matches ACS SF.
-** may need to be careful after; if ACS says nobody of that race, or if the ACS 5yr PUMS has nobody, it will break.
+	} 
+	// reallocate OMB races using rarest race method
+	// control totals have been adjusted using rarest race method to divide MR population
+	// statewide frequency AOIC: nhpi (37787)<black (140010)<aian (163101)<asian (288867)<hispan ()<white()<sora
+	gen ombrr=""
+	replace ombrr="nhpi" if (racnh==1 | racpi==1)
+	replace ombrr="black" if racblk==1 & ombrr==""
+	replace ombrr="aian" if racaian==1 & ombrr==""
+	replace ombrr="asian" if racasn==1 & ombrr==""
+	replace ombrr="hisp" if hisp>1 & ombrr==""
+	replace ombrr="white" if racwht==1 & ombrr==""
+	replace ombrr="other" if racsor==1 & ombrr=="" // nh+sora
+	version 13: table ombrr, contents(sum pwt2) format(%10.0fc) row
+	encode ombrr, gen(ombrrn) // alpha order 1=n 2=a 3=b 4=h 5=p 6=o 7=w
+	// CHECK
+	*set seed 13371701 
+	*survwgt poststratify pwt2, by(state county) totvar(totpop_e) replace
+	version 13: table county if state=="41", contents(sum pwgtp sum pwt1 sum pwt2 mean totpop) format(%7.0fc) row // pwt2 matches ACS SF.
+	** may need to be careful after; if ACS says nobody of that race, or if the ACS 5yr PUMS has nobody, it will break.
+	// CLEAN and SAVE
+	drop fa0004_male-fdisabn_a6599_h // drop flags for eligible control populations, no longer needed after rake
+	drop a0514_male_e-a0004_female_m // drop control totals, no longer needed after rake
+	egen byte agecat=cut(agep),at(0,5,15,18,20,25,30,40,50,60,65,99)
+	destring state, replace
+	replace county=state*1000+county
+	compress
+	// define sample weights
+	svyset [iw=pwt2], sdr(pwgtp1-pwgtp80) vce(sdr)
+	gen byte one=1 
+	save 05_ipf_pums_v01.dta, replace
+end
+* realdfile
+
+// check totals
+/*
+use 05_ipf_pums_v01.dta, clear
+svy: total one, over(county)
+mat table=table
+preserve
+drop _all
+svmat table, names(dat) 
+xpose, clear
+ren v1 b
+ren v2 se
+ren v3 z
+ren v4 pvalue
+ren v5 ll
+ren v6 ul
+ren v7 df
+ren v8 crit
+ren v9 eform
+gen coalpha=_n
+* OK
+restore
+*/
 
 // TABLES
 /* rows: counties (37)
@@ -74,121 +126,135 @@ version 13: table county if state=="41", contents(sum pwgtp sum pwt1 sum pwt2 me
 		priority languages: ?? ~ 130 or so in PUMS. ?? 11 or so in OHA list??
 */
 
-// generate additional flags for age w/o sex.
-foreach a in "0004" "0514" "1517" "1819" "2024" "2529" "3039" "4049" "5059" "6064" "6599" {
-	local x=real(substr("`a'",1,2))
-	local y=real(substr("`a'",3,2))
-	cap confirm var fa`a'
-	if _rc gen byte fa`a'=inrange(age,`x',`y')
-	cap confirm var fa`a'_male
-	if _rc gen byte fa`a'_male=inrange(age,`x',`y') & sex==1
-	cap confirm var fa`a'_female 
-	if _rc gen byte fa`a'_female=inrange(age,`x',`y') & sex==2
+// totals by detailed age/sex
+use county sex agecat pwt* pwgtp* one using 05_ipf_pums_v01.dta, clear
+fillin county sex agecat
+qui for var pwt2 pwgtp1-pwgtp80: replace X=0 if X==.
+drop _fillin
+mat master=J(1,12,.)
+matrix colnames master="county" "sex" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+levelsof agecat, local(ages)
+forvalues s=1/2 {
+	foreach a of local ages {
+		svy: total one if agecat==`a' & sex==`s', over(county)
+		mat table=r(table)
+		mat table=table'
+		mata: st_matrix("county", range(1,37,1))
+		mat sex=J(37,1,`s')
+		mat agecat=J(37,1,`a')
+		mat result=county,sex,agecat,table
+		mat master=master\result
+	}
 }
+drop _all
+svmat master, names(col)
+save results_agesex.dta, replace
+** clean for excel export
+drop if county==.
+keep county sex agecat b
+reshape wide b, i(county agecat) j(sex)
+rename *1 *male
+rename *2 *female
+reshape wide bmale bfemale, i(county) j(agecat)
+order county bmale* bfemale*
 
-//
-// age * [sex + reald + ombrr] = 11 * [2 + 330 + 88] = 4,631 columns.
-mat results=J(36,4620,.) 
-mat stderr=results
-svyset [iw=pwt2], sdr(pwgtp1-pwgtp80) vce(sdr) // use previously adjusted weights.
-local i=1 // count the rows as we proceed
-set seed 13371701 
-qui foreach a in "a0004" "a0514" "a1517" "a1819" "a2024" "a2529" "a3039" "a4049" "a5059" "a6064" "a6599" { 
-	// binary sex
-	foreach s in "" "_male" "_female" { // 3 sexes * 16 ages = 48 columns
-		forvalues c=1/36 {
-			*cap assert el(results,`c',`i')<. // check if matrix cell is empty (skip if already calculated) ~ although, will break the replicability with the seed.
-			*if _rc {
-				sum pwt1 if f`a'`s'==1 & coalpha==`c', mean // simple weighted sum
-				if `r(sum)'>0 {
-					if inlist(`c',3,10,15,20,24,26,34) { // counties with repwgts
-						svy: total f`a'`s' if coalpha==`c' // recalculate using repwgts
-						mat results [`c',`i']=el(r(table),1,1) // total
-						mat stderr [`c',`i']=el(r(table),2,1) // SE
-					}
-					else {
-						mat results [`c',`i']=`r(sum)' // store earlier result in county vector spot
-					}
-				}
-				else {
-					mat results [`c',`i']=0
-				}
-			*}
+// totals by OMB rarest race/ethnicity and age/sex
+use county sex ombrrn agecat pwt* pwgtp* one using 05_ipf_pums_v01.dta, clear
+fillin county sex ombrrn agecat
+qui for var pwt2 pwgtp1-pwgtp80: replace X=0 if X==.
+drop _fillin
+mat master=J(1,13,.)
+mat colnames master="county" "sex" "ombrrn" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+levelsof agecat, local(ages)
+forvalues s=1/2 {
+	forvalues r=1/7 {
+		foreach a of local ages {
+			ereturn clear
+			svy sdr: total one if agecat==`a' & sex==`s' & ombrrn==`r', over(county) 
+			mat table=r(table)
+			mat table=table'
+			mata: st_matrix("county", range(1,37,1))
+			mat sex=J(37,1,`s')
+			mat ombrrn=J(37,1,`r')
+			mat agecat=J(37,1,`a')
+			mat result=county,sex,ombrrn,agecat,table
+			mat master=master\result
 		}
-		matrcrename results col `i' sex`s'_`a'_e // name the results vector
-		matrcrename stderr col `i' sex`s'_`a'_se // name the results vector
-		nois di "`: word `i' of `: colnames results''" // check the name
-		local ++i // move to the next column
 	}
-	// reldpri (REALD primary)
-	levelsof reldpri, local(races)
-	set seed 13371701 
-	foreach r of local races {
-		forvalues c=1/36 {
-			*cap assert el(results,`c',`i')<. 
-			*if _rc {
-				sum pwt2 if reldpri=="`r'" & f`a'==1 & coalpha==`c', mean
-				if `r(sum)'>0 {
-					if inlist(`c',3,10,15,20,24,26,34) { 
-						svy: total f`a' if reldpri=="`r'" & coalpha==`c'
-						mat results [`c',`i']=el(r(table),1,1) 
-						mat stderr [`c',`i']=el(r(table),2,1) 
-					}
-					else {
-						mat results [`c',`i']=`r(sum)'
-					}
-				}
-				else {
-					mat results [`c',`i']=0
-				}
-			*}
-		}
-		matrcrename results col `i' re_reald_`r'_`a'_e
-		matrcrename stderr col `i' re_reald_`r'_`a'_se
-		nois di "`: word `i' of `: colnames results''"
-		local ++i
-	}
-	// omb (OMB rarest)
-	levelsof omb, local(races)
-	set seed 13371701 
-	foreach r of local races {
-		forvalues c=1/36 {
-			*cap assert el(results,`c',`i')<. 
-			*if _rc {
-				sum pwt2 if omb=="`r'" & f`a'==1 & coalpha==`c', mean
-				if `r(sum)'>0 {
-					if inlist(`c',3,10,15,20,24,26,34) { // counties with repwgts
-						svy: total f`a' if omb=="`r'" & coalpha==`c'
-						mat results [`c',`i']=el(r(table),1,1) // total
-						mat stderr [`c',`i']=el(r(table),2,1) // SE
-					}
-					else {
-						mat results [`c',`i']=`r(sum)'
-					}
-				}
-				else {
-					mat results [`c',`i']=0
-				}
-			*}
-		}
-		matrcrename results col `i' re_omb_`r'_`a'_e
-		matrcrename stderr col `i' re_omb_`r'_`a'_se
-		nois di "`: word `i' of `: colnames results''"
-		local ++i
-	}
-	// disab
-	// LEP + language
 }
-mata: st_matrix("c", range(1,36,1))
-mat results=c,results
-mat stderr=c,stderr
-xsvmat results, saving(results_asre_e.dta, replace) names(col) 
-xsvmat stderr, saving(results_asre_se.dta, replace) names(col) 
-dropmiss
-compress
-BREAK
-END
+drop _all
+svmat master, names(col)
+lab def ombrr 1 "aian" 2 "asian" 3 "black" 4 "hispanic" 5 "nhpi" 6 "other" 7 "white", replace
+label values ombrr ombrr
+decode ombrrn, gen(ombrr)
+drop ombrrn
+save results_agesex_ombrr.dta, replace
+** clean for excel export
+drop if county==.
+keep county sex ombrr agecat b
+reshape wide b, i(county agecat ombrr) j(sex)
+rename *1 *male
+rename *2 *female
+reshape wide bmale bfemale, i(county agecat) j(ombrr) string
+reshape wide bmale* bfemale*, i(county) j(agecat) 
+order county bmaleaian* bmaleasian* bmaleblack* bmalehispanic* bmalenhpi* bmaleother* bmalewhite* ///
+	bfemaleaian* bfemaleasian* bfemaleblack* bfemalehispanic* bfemalenhpi* bfemaleother* bfemalewhite* 
 
+// totals by REALD primary race and age/sex
+use county sex reldpri agecat pwt* pwgtp* one using 05_ipf_pums_v01.dta, clear
+fillin county sex reldpri agecat
+qui for var pwt2 pwgtp1-pwgtp80: replace X=0 if X==. 
+drop _fillin
+encode reldpri, gen(reldprin)
+mat master=J(1,13,.)
+mat colnames master="county" "sex" "reldprin" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+levelsof agecat, local(ages)
+forvalues s=1/2 {
+	if `s'==1 local slbl="male"
+	if `s'==2 local slbl="female"
+	forvalues r=1/37 {
+		local rlbl: label reldprin `r'
+		nois di _newline ". Now running: Sex: `slbl' REALD: `rlbl' Age: " _cont
+		foreach a of local ages {
+			nois di "`a'." _cont
+			ereturn clear
+			nois cap svy sdr: total one if agecat==`a' & sex==`s' & reldprin==`r', over(county) 
+			if _rc mat table=J(9,37,0)
+			else mat table=r(table)
+			mat table=table'
+			mata: st_matrix("county", range(1,37,2))
+			mat sex=J(37,1,`s')
+			mat reldprin=J(37,1,`r')
+			mat agecat=J(37,1,`a')
+			mat result=county,sex,reldprin,agecat,table
+			mat master=master\result
+		}
+	}
+}
+drop _all
+svmat master, names(col)
+label values reldprin reldprin
+decode reldprin, gen(reldpri)
+drop reldprin
+save results_agesex_reldpri.dta, replace
+** clean for excel export
+drop if county==.
+keep county sex reldpri agecat b
+reshape wide b, i(county agecat reldpri) j(sex)
+rename *1 *male
+rename *2 *female
+levelsof reldpri, local(levels)
+reshape wide bmale bfemale, i(county agecat) j(reldpri) string
+reshape wide bmale* bfemale*, i(county) j(agecat) 
+order *, seq
+order county
+foreach l of local levels {
+	egen b`l'=rowtotal(bfemale`l'* bmale`l'*)
+}
+browse county bAfrAm-bWhiteOth
+
+// totals by disability
+// totals by LEP/language
 
 
 * Notes:
