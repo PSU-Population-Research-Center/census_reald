@@ -1,18 +1,26 @@
-** purpose; add REALD to acs pums
-** then split PUMS to duplicate for each county
-** NOT able to do analysis for those counties until apply controls.
-
-// notes
-* output: reald_pums_ogdi.dta nd reald_pums_ogdi_di.dta
-* requirements: cURL, various cleaning dofiles, plus ACS2017_21Setup_2v8RELD_ORandWA_copy.do, 01_varstable_v01_api.xlsx (attach flags for eligible pops for control weights)
-
-// tbd
-* use colrange to speed up csv reading
-* figure out what missing variables are: Insur, Region, NonInstDi
+** project: census_reald
+** purpose: assign REALD characteristics to acs pums and split by county
+** author: sharygin@pdx.edu
+/* notes:
+	- prerequisites:
+		- 01_varstable_api.xlsx = list of equivalencies between ACS tables and PUMS, for API calls
+		- path to curl specified in global macro $curl
+		- OHA/ACS_Setup_2v11_RELD_ORandWA.do = based on ACS2017_21Setup_2v11RELD_ORandWA.do; adds race/ethnicity and disability to PUMS
+		- OHA/reldpri.do = assign primary race based on REALD
+		- ACS/migsp.do; pobp.do; anc.do; rachisp.do; lanp.do = adds value labels to ACS PUMS
+	- outputs:
+		- 5ACS`y'_ORWA_RELDPRI.dta = treated PUMS for Oregon + Clark Co, WA with primary race added
+	- to run
+		- run after 02_prep_control.do
+	- TBD: use colrange to speed up csv reading. Add definitions for OHA variables "Insur" "Region" "NonInstDi"
+	- TBD: modify regions as needed to reflect change in 2020 pumas
+*/
 
 // setup
-*global path
-*installs
+foreach p in "zipfile" {
+	cap which `p'
+	if _rc ssc install `p'
+}
 
 // 5. process ACS PUMS ~ add REALD from OHA code
 cap prog drop preppums
@@ -28,7 +36,7 @@ prog def preppums
 		unzipfile "OR_House.zip"
 		import delim using "psam_h41.csv", clear case(upper) delim(",")
 		keep RT SERIALNO ST PUMA WGTP TYPEHUGQ HINCP ADJINC NP HUPAOC HUPARC HUGCL NOC NRC NPP CPLT HHT2 PARTNER R60 R65 WGTP*
-		gen int YEAR=2021
+		gen int YEAR=`year'
 		save OR_House.dta, replace
 		rm "psam_h41.csv"
 		rm "OR_House.zip"
@@ -53,8 +61,8 @@ prog def preppums
 		import delim using "psam_h53.csv", clear case(upper) delim(",")
 		keep if inlist(PUMA,11101,11102,11103,11104)
 		keep RT SERIALNO ST PUMA WGTP TYPEHUGQ HINCP ADJINC NP HUPAOC HUPARC HUGCL NOC NRC NPP CPLT HHT2 PARTNER R60 R65 WGTP*
-		gen int YEAR=2021
-		save 5ACS21WA_House.dta, replace
+		gen int YEAR=`year'
+		save "WA_House.dta", replace
 		rm "psam_h53.csv"
 		rm "WA_House.zip"
 		!$curl -k "https://www2.census.gov/programs-surveys/acs/data/pums/`year'/5-Year/csv_pwa.zip" --output "WA_Indiv.zip"
@@ -69,11 +77,10 @@ prog def preppums
 		rm "psam_p53.csv"
 		rm "WA_Indiv.zip"
 		merge m:1 SERIALNO using WA_House.dta, keep(1 3) nogen // drop hhd records w/no persons (e.g., vacant).
-		// append temp
 		cd ..
+		// append temp
 		append using "5ACS`y'_ORWA_Indiv2v2.dta"
 		for any "migsp" "pobp" "anc" "rachisp" "lanp": do "acs/X.do" // adds value labels
-		gen int year=`y'
 		// cleanup and save result (based on "ACS201721_Setup_1v8_ORandWA.do")
 		gen byte Male=SEX==1
 		gen byte Female=SEX==2
@@ -125,8 +132,9 @@ prog def preppums
 		rm "acs/WA_House.dta"
 	} 
 end
-preppums 2021 // syntax: `1' is endign year of 5-year ACS of desired file.
+*preppums 2020 // syntax: `1' is endign year of 5-year ACS of desired file.
 
+// assign REALD races and primary race
 capture prog drop pumsreld
 prog def pumsreld
 	args year
@@ -136,7 +144,7 @@ prog def pumsreld
 	if _rc {
 		// attach REALD (based on ACS201721_Setup_2v11RELD_ORandWA.do) 
 		use "5ACS`y'_ORWA_Indiv2v2.dta", clear
-		nois do "OHA/ACS201721_Setup_2v11RELD_ORandWA_copy.do" // modified to run on my location 
+		nois do "OHA/ACS_Setup_2v11_RELD_ORandWA.do" // modified to run on my location 
 		save "5ACS`y'_ORWA_Indiv3v11.dta", replace
 		** requires input of "201721ORWA_Indiv2v2.dta" and outputs file "201721ORWA_Indiv3v11.dta"
 		for num 1/7: cap rm TempFileXv2.dta 
@@ -157,7 +165,7 @@ prog def pumsreld
 	label var canind "canadian inuit, metis, or first nation"
 	// assign string primary reald race (full detail)
 	** use RareRaceAdj = single "primary" REALD race based on rarest.
-	nois do ACS/reldpri_v02.do
+	nois do OHA/reldpri.do
 	// omb races
 	gen omb=""
 	replace omb="Hispanic" if inlist(reldpri,"HisCen","HisMex","HisOth","HisSou")
@@ -197,7 +205,7 @@ prog def pumsreld
 	rm  "5ACS`y'_ORWA_Indiv2v2.dta"
 	rm  "5ACS`y'_ORWA_Indiv3v11.dta"
 end
-* pumsreld 2021 
+*pumsreld 2020
 
 // define expansion program (parts 6, 7)
 cap prog drop expandpums
@@ -205,14 +213,15 @@ prog def expandpums
 	args year
 	local y=substr("`year'",3,2)
 	// generate flags in ACS PUMS that correspond to data points in SF tables 
-	import excel using "01_varstable_v02_api.xlsx", sheet(Sheet1) firstrow clear allstring
+	import excel using "01_varstable_api.xlsx", sheet(Sheet1) firstrow clear allstring
+	keep if year=="`year'"
 	drop if varname==""
 	dropmiss, force
 	gen cmd="gen byte f"+varname+"=("+filter+")"
-	outfile cmd using "03b_varstable_v02_pums.do", replace nolabel noquote 
+	outfile cmd using acs/varstable_pums.do, replace nolabel noquote 
 	use "5ACS`y'_ORWA_RELDPRI.dta", clear
-	nois do 03b_varstable_v02_pums.do // add flags in PUMS that correspond to eligibility to be reweighted by published table totals
-	rm 03b_varstable_v02_pums.do // remove, no longer needed.
+	nois do acs/varstable_pums.do // add flags in PUMS that correspond to eligibility to be reweighted by published table totals
+	rm acs/varstable_pums.do // remove, no longer needed.
 	gen byte fdisaby_severe=dis==1 & (dout==1 | dphy==1 | ddrs==1) // excludes hearing, vision, memory; includes ambulatory, self-care, independent living
 	compress // f-prefixed are flags for reweight eligibility
 	// convert PUMAC to county. 
@@ -279,4 +288,4 @@ prog def expandpums
 	drop listme factor
 	save "5ACS`y'_ORWA_RELDPRI.dta", replace
 end
-* expandpums 2021
+*expandpums 2020
