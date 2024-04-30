@@ -470,7 +470,7 @@ prog def disabyControls
 		reshape long a_0004_ a_0514_ a_1517_ a_1819_ a_2024_ a_2529_ a_3039_ a_4049_ a_5059_ a_6064_ a_6599_, i(stcofips) j(sex)
 		reshape long a_@_, i(stcofips sex) j(agecat) string
 		egen atot=sum(a__), by(stcofips)
-		ren a__ a_n // N by age
+		ren a__ as_n // N by agesex
 		rename agecat agec11
 		gen int year=`year'
 		*collapse (sum) a_n, by(stcofips year agec11)
@@ -690,7 +690,7 @@ prog def disabyFile
 		compress
 		save 5ACS`y'_ORWA_RELDPRI_disaby.dta, replace
 end
-disabyFile 2020
+*disabyFile 2020
 
 // tables by disdi
 cap prog drop tabdisdi
@@ -736,7 +736,7 @@ prog def tabdisdi
 	order *, seq
 	order stcofips
 end
-tabdisdi 2020
+*tabdisdi 2020
 
 // tables by da4cat (none/one/two+/severe) 
 cap prog drop tabda4
@@ -786,7 +786,7 @@ prog def tabda4
 	order *, seq
 	order stcofips
 end
-tabda4 2020
+*tabda4 2020
 
 // tables by da7compacsall 
 capture prog drop tabda7
@@ -837,7 +837,7 @@ prog def tabda7
 	order *, seq
 	order stcofips
 end
-tabda7 2020
+*tabda7 2020
 
 // tables by d*oicv2 
 capture prog drop tabdaoic
@@ -1056,6 +1056,7 @@ prog def langControls
 	// obtain recent control totals by lang42 (county level = multco, washco only; state level = OR)
 	** consider: combining 1ACS18/1ACS19, 1ACS20, 1ACS21 for small populations
 	** consider ignoring county level because have already the 5-year PUMS, which is more reliable
+		local year=2020
 		tempfile tmp
 		local T="B16001"
 		if `year'<2019 {
@@ -1136,20 +1137,21 @@ prog def langControls
 		ren lc42 lc42_n
 		drop if langc42=="eng" & lep==1
 		assert lc42_n<.
-		*egen lc42_tot=sum(lc42_n), by(stcofips)
 		gen int year=`year'
-		subsave if stcofips!="41" using temp/control_langc42_tmp.dta, replace // county totals (where available)
+		subsave if stcofips!="41" using temp/control_langc42co_tmp.dta, replace // county totals (wash/multco only)
 		keep if stcofips=="41"
 		ren stcofips stfips
 		ren lc42_n lc42st_n
-		save temp/control_langc42st_tmp.dta, replace // state totals
+		version 13: table langc42 lep, contents(sum lc42st_n) col
+		save temp/control_langc42st_tmp.dta, replace // state totals (OR only)
 	// obtain control totals by lang12 (latest, state + county)
 	** consider: 
+		local year=2020
 		local T="C16001"
 		tempfile tmp
 		censusapi, url("https://api.census.gov/data/`year'/acs/acs5?get=group(`T')&for=county:*&in=state:41")
 		save `tmp', replace
-		censusapi, url("https://api.census.gov/data/`year'/acs/acs5?get=group(`T')&for=county:067&in=state:53")
+		censusapi, url("https://api.census.gov/data/`year'/acs/acs5?get=group(`T')&for=county:011&in=state:53")
 		append using `tmp'
 		rename c16001_*e e*
 		#delimit ;
@@ -1178,6 +1180,7 @@ prog def langControls
 		assert lc12_n<.
 		*egen lc12_tot=sum(lc12_n), by(stcofips)
 		gen int year=`year'
+		version 13: table langc12 lep, contents(sum lc12_n) col
 		save temp/control_langc12_tmp.dta, replace
 	// obtain latest counts by birthplace in hong kong/taiwan, mainland china, iran/tajikistan, and afghanistan
 	** include data from 2015 EXCEPT for Wash, Mult, Clack, Clark; others get weighted average of 2010-15 and last
@@ -1246,10 +1249,10 @@ prog def langControls
 		reshape long a_0004_ a_0514_ a_1517_ a_1819_ a_2024_ a_2529_ a_3039_ a_4049_ a_5059_ a_6064_ a_6599_, i(stcofips) j(sex)
 		reshape long a_@_, i(stcofips sex) j(agecat) string
 		egen atot=sum(a__), by(stcofips)
-		ren a__ a_n // N by age
+		ren a__ as_n // N by agesex
 		rename agecat agec11
 		gen int year=`year'
-		*collapse (sum) a_n, by(stcofips year agec11)
+		*collapse (sum) as_n, by(stcofips year agec11)
 		save temp/control_age_tmp.dta, replace
 	// obtain control totals by place of birth for foreign born
 		/*
@@ -1293,7 +1296,7 @@ prog def donorLang
 	local i=1
 	tempfile tmp
 	foreach g in "for=state:41" "for=public%20use%20microdata%20area:11101,11102,11103,11104&in=state:53" {
-		local vars="AGEP,SEX,LANX,ENG,LANP"
+		local vars="PUMA,AGEP,SEX,LANX,ENG,LANP"
 		censusapi, url("https://api.census.gov/data/`year'/acs/acs5/pums?get=`vars'&`g'&key=$ckey") 
 		if `i'==1 save `tmp'
 		if `i'==2 append using `tmp'
@@ -1308,6 +1311,14 @@ prog def donorLang
 end
 *donorLang 2016 // pums api is flaky; may require repeated runs.
 *donorLang 2020
+*use acs/donor_lanp_5acs20.dta, clear
+*append using acs/donor_lanp_5acs16.dta
+*gen lep=.
+*replace lep=0 if eng==1 | lanx==2
+*replace lep=1 if inlist(eng,2,3,4)
+*assert lep<. if agep>=5 
+*save acs/donor_lanp_5acs20.dta, replace
+*rm acs/donor_lanp_5acs16.dta
 
 // attach merge/rake points in PUMS
 cap prog drop langFile
@@ -1322,35 +1333,48 @@ prog def langFile
 	drop state county
 	** language categories
 	ren lanp lanp16 // only works for PUMS samples from 2016+
-	merge m:1 lanp16 using 04_langxwalk.dta, keep(1 3) nogen keepus(langfnl)
-	** fillin such that every lang*lep status is represented and has nonmissing age/sex
-	** this is necessary because sometimes control totals require adjustment of weights where no matching speakers exist in PUMS
-	** method for doing so -- create dummy obs with minimal pwgtp; merge traits from donor datasets of speakers from other time/areas
-	preserve
-	tempfile tmp2
-	fillin year stcofips langfnl eng
-	keep if _fillin==1
-	keep year stcofips langfnl eng 
-	merge m:m langfnl eng using acs/donor_lanp_5acs`y'.dta, keepus(lanx lanp agep sex) keep(1 3)
-	drop _merge
-	merge m:m langfnl eng using acs/donor_lanp_5acs16.dta, keepus(lanx lanp agep sex) keep(1 3 4) update
-	drop _merge
-	keep if sex<. & agep<. & lanp<. & lanx<. & langfnl<. & eng<.
-	gen pwgtp=1e-3 
-	save `tmp2'
-	restore
-	append using `tmp2'
+	merge m:1 lanp16 using 04_langxwalk.dta, keep(1 3) nogen keepus(langfnl lf_label)
+	labmask langfnl, values(lf_label)
+	drop lf_label
 	** lep
 	gen lep=.
 	replace lep=0 if eng==1 | lanx==2
 	replace lep=1 if inlist(eng,2,3,4)
-	assert lep<. if agep>=5
+	assert lep<. if agep>=5 
+	** fillin such that every lang*lep status is represented and has nonmissing age/sex
+	** this is necessary because sometimes control totals require adjustment of weights where no matching speakers exist in PUMS
+	** (1) make a list of lang*lep that are missing for each county; (2) hotdeck from donor obs without geo restriction
+	preserve
+	tempfile tmp2
+	fillin year stcofips langfnl lep // ensure complete list of langfnl for each county
+	drop if inlist(langfnl,85,85,86,90,91,92) // languages w/o donors in region, and with another lang39/lang42/lang12 record
+	drop if inlist(langfnl,94,95,97,98,99,100) // drop specific aian languages when unknown EXCEPT navajo (because it's on the lang39 list)
+	keep if _fillin==1 & langfnl<. & lep<. 
+	replace stfips=substr(stcofips,1,2) if stfips==""
+	keep year stfips stcofips langfnl lep lanx lanp16 agep sex
+	append using acs/donor_lanp_5acs20.dta, keep(langfnl lanp16 lep lanx lanp agep sex) gen(add)
+	set seed 13371701
+	bys langfnl lep: hotdeckvar lanp16 lanx agep sex, suffix("_m1")
+	bys langfnl: hotdeckvar lanp16 lanx agep sex, suffix("_m2")
+	drop if add==1
+	for var lanp16 lanx agep sex: replace X=X_m1 if X==. & X_m1<. \\ replace X=X_m2 if X==. & X_m2<.
+	drop add *_m1 *_m2
+	assert sex<. & agep<. & lanp<. & lanx<. & langfnl<. & lep<.
+	keep if sex<. & agep<. & lanp<. & lanx<. & langfnl<. & lep<.
+	gen pwgtp=1e-3 
+	save `tmp2'
+	restore
+	append using `tmp2'
 	** summarized language categories
 	merge m:m langfnl using 04_langxwalk.dta, keep(1 3) nogen keepus(lf_label langc39 langc42 langc12 langc5)
 	tab1 langc39 langc42 langc12 langc5 if lanp16<., mis // ensure no missings for non-english languages
 	** fix english only speakers
 	for var langc*: replace X="eng" if lanx==2 // ensure speaks english only is given lang="eng"
 	assert lep==0 if lanx==2
+	tab langc12 lep, mis 
+	tab langc39 lep, mis 
+	tab langc42 lep, mis 
+	tab1 langc39 langc42 langc12 langc5 if lanp16<. | (lanx==2), mis // ensure no missings for non-english languages
 	** detailed agecat
 	gen agec11=""
 	replace agec11="0004" if inrange(agep,0,4)
@@ -1370,48 +1394,74 @@ prog def langFile
 	replace agec3="1864" if inrange(agep,18,64)
 	replace agec3="6599" if inrange(agep,65,99)
 	assert agec3!="" | agec11=="0004"
-
+	** add control totals by age/sex/language/lep
+	assert stcofips!="" & year<. & sex<. & agec11!=""
+	merge m:1 stcofips sex agec11 using temp/control_age_tmp.dta, assert(3) keepus(as_n) nogen
+	ren as_n as_n_co
+	* merge m:1 stcofips agec3 langc5 lep using temp/control_lc5ac3lep_tmp.dta, assert(1 3) // broad lang/age detail
+	* merge ... // place of birth detail ~ help allocation within multi-county pumas
+	assert stcofips!="" & year<. & (lep<.|agec11=="0004") & (langc39!=""|agec11=="0004")
+	merge m:1 stcofips langc39 lep using temp/control_langc39_tmp.dta, assert(1 3) keepus(lc39_n) // old county lang39
+	ren lc39_n lc39_n_co
+	assert _merge==3 if agec11!="0004"
+	drop _merge
+	assert stcofips!="" & year<. & (lep<.|agec11=="0004") & (langc12!=""|agec11=="0004")
+	merge m:1 stcofips year langc12 lep using temp/control_langc12_tmp.dta, assert(1 3) keepus(lc12_n) // latest county lang12
+	ren lc12_n lc12_n_co
+	assert _merge==3 if agec11!="0004"
+	drop _merge
+	assert stfips!="" & year<. & (lep<.|agec11=="0004") & (langc42!=""|agec11=="0004")
+	merge m:1 stfips year langc42 lep using temp/control_langc42st_tmp.dta, assert(1 3) keepus(lc42st_n) // state total by lang42
+	assert _merge==3 if (agec11!="0004" & stfips=="41") // no state control for Clark Co.
+	drop _merge
 save 5ACS20_ORWA_RELDPRI_raceeth_wip.dta, replace
 DONE TO HERe
 END
-	use 5ACS20_ORWA_RELDPRI_raceeth_wip.dta, clear
-	>> all kinds of problems merging the control totals for "eng" and lep:0
-	
-	** add control totals by age/sex/language/lep
-	assert stcofips!="" & year<. & sex<. & agec11!=""
-	merge m:1 stcofips sex agec11 using temp/control_age_tmp.dta, assert(3) nogen
-	* merge m:1 stcofips agec3 langc5 lep using temp/control_lc5ac3lep_tmp.dta, assert(1 3) // _m==1 for age0-4 ~ skipping
-	assert stcofips!="" & year<. & (lep<.|agec11=="0004") & (langc39!=""|agec11=="0004")
-	merge m:1 stcofips langc39 lep using temp/control_langc39_tmp.dta, assert(1 3) // old county lang39
-	assert _merge==3 if agec11!="0004"
-	assert stcofips!="" & year<. & (lep<.|agec11=="0004") & (langc42!=""|agec11=="0004")
-	merge m:1 stcofips year langc42 lep using temp/control_langc42_tmp.dta, assert(1 3) // state lang42 (and multco/washco)
-	assert _merge==3 if agec11!="0004"
-	assert stcofips!="" & year<. & (lep<.|agec11=="0004") & (langc12!=""|agec11=="0004")
-	merge m:1 stcofips year langc12 lep using temp/control_langc12_tmp.dta, assert(1 3) // latest county lang12
-	assert _merge==3 if agec11!="0004"
-	assert stfips!="" & year<. & (lep<.|agec11=="0004") & (langc42!=""|agec11=="0004")
-	merge m:1 stfips year langc42 lep using temp/control_langc42st_tmp.dta, assert(1 3) // state total (OR only)
-	assert _merge==3 if agec11!="0004"
-	
-	// RAKE by detailed age/sex (gen pwt1) THEN by ... 
-	set seed 1337170
-	survwgt poststratify pwgtp, by(stcofips agec11 sex) totvar(a_n) gen(pwt1)
-	gen toskip=inlist(stcofips,"MARION","MULTNOMAH","CLACKAMAS","WASHINGTON")
-	set seed 1337170
-	survwgt poststratify pwt1 if toskip==0, by(stcofips langc39 lep) totvar(lc39_n) gen(pwt2) // control to 2015 detailed languages
-	replace pwt2=pwt1 if toskip==1
-	set seed 1337170
-	survwgt poststratify pwt2, by(stcofips agec3 lep langc5) totvar(ac3_lc5_lep_n) gen(pwt3) // control to broad age*broad language
-	set seed 1337170
-	survwgt poststratify pwt3, by(stcofips state langc42 lep) totvar(lc12_n lc42_n) gen(pwt4) <<-- fix this for simultaneous control
-	replace pwt4=0 if pwt4==.
+use 5ACS20_ORWA_RELDPRI_raceeth_wip.dta, clear
+!! problem here: the totals don't agree between sum of county c16001 (eg arabic 9662) and state b16001 (eg arabic 9144, which matches data.census.gov)
 
-	// simultaneous rake to latest state lang42 + county lang12
-	** n.b. sometimes wash/mult have a recent b16001 with lang42, but 1-yr ACS with terrible MOEs.
-	egen id1=group(lang42 lep)
-	egen id2=group(cname lang12 lep)
-	survwgt rake perwt1, by(id1 id2) totvars(pop_lep_state pop_lep_county) gen(perwt_lep_sr) maxrep(255) // final raked counts 
+	// RAKE by detailed age/sex (gen pwt1) THEN by ... 
+	svyset [pw=pwgtp], sdr(pwgtp1-pwgtp80) vce(sdr) mse
+	set seed 1337170
+	survwgt poststratify pwgtp, by(stcofips agec11 sex) totvar(as_n) gen(pwt1) // control to age-sex
+	tab stcofips [iw=pwt1] // total pop
+	*gen toskip=inlist(stcofips,"JACKSON","DOUGLAS","LANE","DESCHUTES","MARION","MULTNOMAH","CLACKAMAS","WASHINGTON","CLARK,WA") // single-county PUMAs
+	gen toskip=inlist(stcofips,"41029","41019","41039","41017","41047","41051","41005","41067","53011") // single-county PUMAs
+	tab stcofips toskip
+	set seed 1337170
+	survwgt poststratify pwt1 if toskip==0 & agep>=5, by(stcofips langc39 lep) totvar(lc39_n) gen(pwt2) // control to 2015 detailed languages (for multi-county PUMAs)
+	replace pwt2=pwt1 if toskip==1 | agep<5
+	tab stcofips [iw=pwt2] 
+	*set seed 1337170
+	*survwgt poststratify pwt2 if agep>=5, by(stcofips agec3 lep langc5) totvar(ac3_lc5_lep_n) gen(pwt3) // control to broad age*broad language
+	*replace pwt3=pwt2 if agep<5
+	set seed 1337170
+	survwgt poststratify pwt2 if agep>=5, by(stcofips langc12 lep) totvar(lc12_n) gen(pwt3) // control to last lang12 counties (all including Clark, WA)
+	replace pwt3=pwt2 if agep<5
+	tab stcofips [iw=pwt3] 
+	
+	// rake Oregon counties to state lang42 (works if done first; bugfixing why not when done in sequence)
+	egen id1=group(stfips langc42 lep) if stfips=="41"
+	egen id2=group(stcofips langc12 lep) if stfips=="41"
+	svrset set pw pwgtp
+	svrset set rw pwgtp1-pwgtp80
+	svyset [pw=pwgtp], sdr(pwgtp1-pwgtp80) vce(sdr) mse
+	bys stcofips langc12: gen listme=_n
+	table langc12 lep if stfips=="41" & listme==1, stat(sum lc12_n) nototal
+	table langc42 lep if stfips=="41", stat(mean lc42st_n) nototal
+	set seed 13371701
+	survwgt rake pwgtp if stfips=="41" & agep>=5, by(id1 id2) totvars(lc42st_n lc12_n) gen(pwt4) maxrep(255) // simultaneous rake by county lang12 * state lang42
+	
+	// rake Oregon counties to state lang42 * county lang12 * county age/sex; WA to just Clark County lang12 * county age/sex (for age 5+)
+	
+	
+
+>> fails because of conflict beween sum of counties and state total
+!!
+	tab stcofips lep if langc12=="ara" [iw=pwt3]
+	tab stfips lep if langc42=="ara" [iw=pwt3]
+	
+	
 
 end
 langFile 2020
