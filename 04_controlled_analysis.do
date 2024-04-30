@@ -22,8 +22,9 @@
 	- TBD: incorporate code from language analysis as a separate dofile or module within this file
 	- TBD: add error metric for tracking iterations in disability reweighting to aid decision on # of iterations
 	- TBD: consider adding 06-10 PUMS for small counties only to inflate representation of rare conditions (especially languages)
-changelog:
-	v08: adding dummy exposure from older ACS PUMS instead of synthetic obs ~ timestamp for deliverables from 2024-04-------
+changelog: ~ timestamp for deliverables from 2024-04-------
+	v09: changing donor dataset to be broader time and geography PUMS 
+	v08: adding dummy exposure from older ACS PUMS instead of synthetic obs 
 	v07: adding empty persons to ensure successful language rake 
 	v06: converted blocks to functions and updated filenames/paths; added place for language analysis (WIP)
 	v05: fixed disability code ~ timestamp for deliverables from 2024-01-16
@@ -925,12 +926,13 @@ end
 // -- rectangularize to avoid zeros
 // raking sequence 
 // -- rake to agec11/sex
+// -- rake to pobp/ancestry (county level ~ help with e.g. NHPI)
 // -- rake to 2015 version lang32 (for counties that were part of a multi-county PUMA)
 // -- rake to langc5/agec3/lep 
 // -- rake to agec11/sex 
 // -- simultaneous rake to lang12 (all counties) + lang42 (state)
 // summary
-// -- special adjustments, e.g. Spanish in Gilliam in 2021 etc
+// -- special adjustments/overrides, e.g. Spanish>0 for Gilliam in 2021 etc
 
 
 // obtain control totals by age/sex/lang
@@ -1249,11 +1251,41 @@ prog def langControls
 		gen int year=`year'
 		*collapse (sum) a_n, by(stcofips year agec11)
 		save temp/control_age_tmp.dta, replace
+	// obtain control totals by place of birth for foreign born
+		/*
+		tempfile tmp
+		local T="B05006"
+		censusapi, url("https://api.census.gov/data/`year'/acs/acs5?get=group(`T')&for=county:*&in=state:41")
+		save `tmp', replace
+		censusapi, url("https://api.census.gov/data/`year'/acs/acs5?get=group(`T')&for=county:011&in=state:53")
+		append using `tmp'
+		rename b05006_*e e*
+		gen fbbpld_eur=e002
+		gen fbbpld_asi=e047
+		gen fbbpld_afr=e095
+		gen fbbpld_oce=e130
+		gen fbbpld_lac=e139
+		gen fbbpld_nam=e176
+		... more detailed, to help with languages
+		tostring state, replace format(%02.0f) 
+		tostring county, replace format(%03.0f)
+		gen stcofips=state+county
+		keep stcofips a_*
+		reshape long a_0004_ a_0514_ a_1517_ a_1819_ a_2024_ a_2529_ a_3039_ a_4049_ a_5059_ a_6064_ a_6599_, i(stcofips) j(sex)
+		reshape long a_@_, i(stcofips sex) j(agecat) string
+		egen atot=sum(a__), by(stcofips)
+		ren a__ a_n // N by age
+		rename agecat agec11
+		gen int year=`year'
+		*collapse (sum) a_n, by(stcofips year agec11)
+		save temp/control_forborn_bpld.dta, replace
+		*/
 end
 *langControls 2020
 
 // generate donor samples from previous ACS PUMS (for more representation of rare languages)
-**	limited to 2012-2016 sample to ensure comparability of PUMA and LANP codes.
+**	limited to 2012-2016 sample and later to ensure comparability of PUMA and LANP codes.
+** 	used only to get traits (age/sex/lep) for language speakers not in PUMS, but in ACS tables
 cap prog drop donorLang
 prog def donorLang
 	local year=`1'
@@ -1261,152 +1293,64 @@ prog def donorLang
 	local i=1
 	tempfile tmp
 	foreach g in "for=state:41" "for=public%20use%20microdata%20area:11101,11102,11103,11104&in=state:53" {
-		local vars="SERIALNO,SPORDER,PUMA,AGEP,SEX,LANX,ENG,LANP,PWGTP"
-		/* the api is returning garbled output for the replicate weights
-		forvalues v=1/40 {
-			local vars="`vars',PWGTP`v'"
-		}
-		*/
+		local vars="AGEP,SEX,LANX,ENG,LANP"
 		censusapi, url("https://api.census.gov/data/`year'/acs/acs5/pums?get=`vars'&`g'&key=$ckey") 
 		if `i'==1 save `tmp'
 		if `i'==2 append using `tmp'
-		/*
-		local vars="SERIALNO,SPORDER"
-		forvalues v=41/80 {
-			local vars="`vars',PWGTP`v'"
-		}
-		** SERIALNO,SPORDER,PWGTP41,PWGTP42,PWGTP43,PWGTP44,PWGTP45,PWGTP46,PWGTP47,PWGTP48,PWGTP49,PWGTP50,PWGTP51,PWGTP52,PWGTP53,PWGTP54,PWGTP55,PWGTP56,PWGTP57,PWGTP58,PWGTP59,PWGTP60,PWGTP61,PWGTP62,PWGTP63,PWGTP64,PWGTP65,PWGTP66,PWGTP67,PWGTP68,PWGTP69,PWGTP70,PWGTP71,PWGTP72,PWGTP73,PWGTP74,PWGTP75,PWGTP76,PWGTP77,PWGTP78,PWGTP79,PWGTP80
-		censusapi, url("https://api.census.gov/data/`year'/acs/acs5/pums?get=`vars'&`g'&key=$ckey") 
-		if `i'==1 merge 1:1 serialno sporder using `tmp', assert(3) nogen
-		if `i'==2 merge 1:1 serialno sporder using `tmp', assert(2 3) nogen
-		cap drop publicusemicrodataare
-		*/
 		local ++i
 	}
+	cap drop publicusemicroda
+	cap drop state
 	keep if inrange(lanp,1000,9999) // keep persons with a language other than english
-	gen int year=`year'
-	// convert PUMAC to county. 
-	ren puma puma10
-	do acs/pumac10.do
-	gen byte factor=.
-	replace factor=4 if pumac==1
-	replace factor=9 if pumac==2
-	replace factor=4 if pumac==3
-	replace factor=4 if pumac==5
-	replace factor=2 if pumac==6
-	replace factor=3 if pumac==8
-	replace factor=2 if pumac==12
-	replace factor=1 if factor==.
-	assert factor<.
-	expand factor, gen(flag)
-	bys serialno sporder: gen listme=_n // should top out at factorvalue.
-	tostring state, replace force
-	gen county=""
-	replace county="001" if pumac==1 & listme==1 // baker
-	replace county="059" if pumac==1 & listme==2 // umatilla
-	replace county="061" if pumac==1 & listme==3 // union
-	replace county="063" if pumac==1 & listme==4 // wallowa
-	replace county="013" if pumac==2 & listme==1 // crook
-	replace county="021" if pumac==2 & listme==2 // gilliam
-	replace county="023" if pumac==2 & listme==3 // grant
-	replace county="027" if pumac==2 & listme==4 // hood river
-	replace county="031" if pumac==2 & listme==5 // jefferson
-	replace county="049" if pumac==2 & listme==6 // morrow
-	replace county="055" if pumac==2 & listme==7 // sherman
-	replace county="065" if pumac==2 & listme==8 // wasco
-	replace county="069" if pumac==2 & listme==9 // wheeler
-	replace county="025" if pumac==3 & listme==1 // harney
-	replace county="035" if pumac==3 & listme==2 // klamath
-	replace county="037" if pumac==3 & listme==3 // lake
-	replace county="045" if pumac==3 & listme==4 // malheur
-	replace county="017" if pumac==4 // deschutes
-	replace county="007" if pumac==5 & listme==1 // clatsop
-	replace county="009" if pumac==5 & listme==2 // columbia
-	replace county="041" if pumac==5 & listme==3 // lincoln
-	replace county="057" if pumac==5 & listme==4 // tillamook
-	replace county="003" if pumac==6 & listme==1 // benton
-	replace county="043" if pumac==6 & listme==2 // linn
-	replace county="039" if pumac==7 // lane
-	replace county="011" if pumac==8 & listme==1 // coos
-	replace county="015" if pumac==8 & listme==2 // curry
-	replace county="033" if pumac==8 & listme==3 // josephine
-	replace county="029" if pumac==9 // jackson
-	replace county="019" if pumac==10 // douglas
-	replace county="047" if pumac==11 // marion
-	replace county="053" if pumac==12 & listme==1 // polk
-	replace county="071" if pumac==12 & listme==2 // yamhill
-	replace county="051" if pumac==13 // multnomah
-	replace county="005" if pumac==14 // clackamas
-	replace county="067" if pumac==15 // washington
-	lab def pumac_lbl 16 "CLARK-WA", add
-	replace county="011" if pumac==. & state=="53" & inrange(puma10,11101,11104)
-	replace pumac=16 if state=="53" & inrange(puma10,11101,11104)
-	bigtab pumac state county, nocum nol
-	assert county!="" & year!=. & state!=""
-	unique state county
-	assert `r(unique)'==37
-	compress
-	drop listme factor 
-	order year state county pumac
-	gen stcofips=state+county
-	keep stcofips agep sex lanx eng lanp pwgtp
+	ren lanp lanp16
+	merge m:1 lanp16 using 04_langxwalk.dta, keep(1 3) nogen keepus(langfnl)
 	save "acs/donor_lanp_5acs`y'.dta", replace 
 end
-* donorLang 2016 // pums api is flaky; may require repeated runs.
+*donorLang 2016 // pums api is flaky; may require repeated runs.
+*donorLang 2020
 
 // attach merge/rake points in PUMS
 cap prog drop langFile
 prog def langFile
+	local 1=2020
 	local year=`1'
 	local y=substr("`year'",3,2)
-	** prep code list of langfnl to other language codes
-	tempfile tmp1
-	use 04_langxwalk.dta, clear
-	contract langfnl lf_label langc39 langc42 langc12 langc5
-	drop _f
-	drop if langfnl==93 & langc42=="waf" // ambiguous coding
-	unique langfnl 
-	assert `r(N)'==`r(unique)'
-	save `tmp1'
 	** load PUMS
-	** (consider whether to add 06-10 + 10-15 PUMS -- for small counties only -- to inflate representation of rare languages??)
 	use year state county sex agep lanx lanp eng pw* using 5ACS20_ORWA_RELDPRI.dta, clear
 	gen stfips=state
 	gen stcofips=state+county
-	** !! append non-overlapping historic ACS PUMS to fix issue of missing types of persons in PUMS
-	** !! watch out for older codes, e.g. recode older lanp codes to lanp16 codes used for 2016+
-	** !! added obs will be missing RaceEth and Disaby codes but will have essential traits (sex/agep/lanp)
-	** !! erase weights on older ACS samples, but assign a nonzero probability of selection in raking step
-	append using acs/donor_lanp_5acs16.dta, gen(_append)
-	replace pwgtp=1e-3 if _append==1
-	drop _append
+	drop state county
 	** language categories
 	ren lanp lanp16 // only works for PUMS samples from 2016+
 	merge m:1 lanp16 using 04_langxwalk.dta, keep(1 3) nogen keepus(langfnl)
 	** fillin such that every lang*lep status is represented and has nonmissing age/sex
 	** this is necessary because sometimes control totals require adjustment of weights where no matching speakers exist in PUMS
-	** method for doing so -- use a state-level donor dataset of speakers from 2012-2016 or current ACS without geographic restrictions 
+	** method for doing so -- create dummy obs with minimal pwgtp; merge traits from donor datasets of speakers from other time/areas
 	preserve
 	tempfile tmp2
-	fillin stcofips langfnl lep, gen(_fillin)
+	fillin year stcofips langfnl eng
 	keep if _fillin==1
-	keep year stcofips langfnl 
-	merge m:m langfnl lep using 5ACS20_ORWA_RELDPRI.dta, keep(lanx lanp eng agep sex)
-	replace pwgtp=1e-3 
-	gen int year=`year'
+	keep year stcofips langfnl eng 
+	merge m:m langfnl eng using acs/donor_lanp_5acs`y'.dta, keepus(lanx lanp agep sex) keep(1 3)
+	drop _merge
+	merge m:m langfnl eng using acs/donor_lanp_5acs16.dta, keepus(lanx lanp agep sex) keep(1 3 4) update
+	drop _merge
+	keep if sex<. & agep<. & lanp<. & lanx<. & langfnl<. & eng<.
+	gen pwgtp=1e-3 
 	save `tmp2'
 	restore
 	append using `tmp2'
-	** summarize language categories
-	merge m:1 langfnl using `tmp1', keep(1 3) nogen keepus(lf_label langc39 langc42 langc12 langc5)
-	tab1 langc39 langc42 langc12 langc5 if lanp16<., mis // ensure no missings for non-english languages
-	** fix english only speakesr
-	for var langc*: replace X="eng" if X=="" & lanx==2 // ensure speaks english only is given lang="eng"
 	** lep
 	gen lep=.
 	replace lep=0 if eng==1 | lanx==2
 	replace lep=1 if inlist(eng,2,3,4)
 	assert lep<. if agep>=5
+	** summarized language categories
+	merge m:m langfnl using 04_langxwalk.dta, keep(1 3) nogen keepus(lf_label langc39 langc42 langc12 langc5)
+	tab1 langc39 langc42 langc12 langc5 if lanp16<., mis // ensure no missings for non-english languages
+	** fix english only speakers
+	for var langc*: replace X="eng" if lanx==2 // ensure speaks english only is given lang="eng"
+	assert lep==0 if lanx==2
 	** detailed agecat
 	gen agec11=""
 	replace agec11="0004" if inrange(agep,0,4)
@@ -1431,7 +1375,7 @@ save 5ACS20_ORWA_RELDPRI_raceeth_wip.dta, replace
 DONE TO HERe
 END
 	use 5ACS20_ORWA_RELDPRI_raceeth_wip.dta, clear
-	
+	>> all kinds of problems merging the control totals for "eng" and lep:0
 	
 	** add control totals by age/sex/language/lep
 	assert stcofips!="" & year<. & sex<. & agec11!=""
