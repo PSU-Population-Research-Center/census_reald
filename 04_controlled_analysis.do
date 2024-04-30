@@ -22,7 +22,10 @@
 	- TBD: incorporate code from language analysis as a separate dofile or module within this file
 	- TBD: add error metric for tracking iterations in disability reweighting to aid decision on # of iterations
 	- TBD: consider adding 06-10 PUMS for small counties only to inflate representation of rare conditions (especially languages)
+	- TBD: move control generation for REALD here and deprecate 01_prep_control.do
 changelog: ~ timestamp for deliverables from 2024-04-------
+	v11: completed sequential raking (1) by langc39-lep (2) by lang12-lep-agesex-langc42st.
+	v10: working language rake, but excluding langc39 rake for small counties
 	v09: changing donor dataset to be broader time and geography PUMS 
 	v08: adding dummy exposure from older ACS PUMS instead of synthetic obs 
 	v07: adding empty persons to ensure successful language rake 
@@ -1056,7 +1059,6 @@ prog def langControls
 	// obtain recent control totals by lang42 (county level = multco, washco only; state level = OR)
 	** consider: combining 1ACS18/1ACS19, 1ACS20, 1ACS21 for small populations
 	** consider ignoring county level because have already the 5-year PUMS, which is more reliable
-		local year=2020
 		tempfile tmp
 		local T="B16001"
 		if `year'<2019 {
@@ -1146,7 +1148,6 @@ prog def langControls
 		save temp/control_langc42st_tmp.dta, replace // state totals (OR only)
 	// obtain control totals by lang12 (latest, state + county)
 	** consider: 
-		local year=2020
 		local T="C16001"
 		tempfile tmp
 		censusapi, url("https://api.census.gov/data/`year'/acs/acs5?get=group(`T')&for=county:*&in=state:41")
@@ -1284,7 +1285,7 @@ prog def langControls
 		save temp/control_forborn_bpld.dta, replace
 		*/
 end
-*langControls 2020
+*langControls 2021
 
 // generate donor samples from previous ACS PUMS (for more representation of rare languages)
 **	limited to 2012-2016 sample and later to ensure comparability of PUMA and LANP codes.
@@ -1304,30 +1305,26 @@ prog def donorLang
 	}
 	cap drop publicusemicroda
 	cap drop state
+	destring lanp, replace ignore("N")
 	keep if inrange(lanp,1000,9999) // keep persons with a language other than english
 	ren lanp lanp16
-	merge m:1 lanp16 using 04_langxwalk.dta, keep(1 3) nogen keepus(langfnl)
+	merge m:1 lanp16 using 04_langxwalk.dta, assert(2 3) keep(1 3) nogen keepus(langfnl)
+	gen lep=.
+	replace lep=0 if eng==1 | lanx==2
+	replace lep=1 if inlist(eng,2,3,4)
+	assert lep<. if agep>=5 
 	save "acs/donor_lanp_5acs`y'.dta", replace 
 end
 *donorLang 2016 // pums api is flaky; may require repeated runs.
-*donorLang 2020
-*use acs/donor_lanp_5acs20.dta, clear
-*append using acs/donor_lanp_5acs16.dta
-*gen lep=.
-*replace lep=0 if eng==1 | lanx==2
-*replace lep=1 if inlist(eng,2,3,4)
-*assert lep<. if agep>=5 
-*save acs/donor_lanp_5acs20.dta, replace
-*rm acs/donor_lanp_5acs16.dta
+*donorLang 2021
 
 // attach merge/rake points in PUMS
 cap prog drop langFile
 prog def langFile
-	local 1=2020
 	local year=`1'
 	local y=substr("`year'",3,2)
 	** load PUMS
-	use year state county sex agep lanx lanp eng pw* using 5ACS20_ORWA_RELDPRI.dta, clear
+	use year state county sex agep lanx lanp eng pw* using 5ACS`y'_ORWA_RELDPRI.dta, clear
 	gen stfips=state
 	gen stcofips=state+county
 	drop state county
@@ -1352,11 +1349,12 @@ prog def langFile
 	keep if _fillin==1 & langfnl<. & lep<. 
 	replace stfips=substr(stcofips,1,2) if stfips==""
 	keep year stfips stcofips langfnl lep lanx lanp16 agep sex
-	append using acs/donor_lanp_5acs20.dta, keep(langfnl lanp16 lep lanx lanp agep sex) gen(add)
+	append using acs/donor_lanp_5acs16.dta, keep(langfnl lanp16 lep lanx lanp agep sex) gen(add)
+	append using acs/donor_lanp_5acs`y'.dta, keep(langfnl lanp16 lep lanx lanp agep sex) gen(add2)
 	set seed 13371701
 	bys langfnl lep: hotdeckvar lanp16 lanx agep sex, suffix("_m1")
 	bys langfnl: hotdeckvar lanp16 lanx agep sex, suffix("_m2")
-	drop if add==1
+	drop if add==1 | add2==1
 	for var lanp16 lanx agep sex: replace X=X_m1 if X==. & X_m1<. \\ replace X=X_m2 if X==. & X_m2<.
 	drop add *_m1 *_m2
 	assert sex<. & agep<. & lanp<. & lanx<. & langfnl<. & lep<.
@@ -1394,97 +1392,134 @@ prog def langFile
 	replace agec3="1864" if inrange(agep,18,64)
 	replace agec3="6599" if inrange(agep,65,99)
 	assert agec3!="" | agec11=="0004"
-	** add control totals by age/sex/language/lep
+	** merge control totals
 	assert stcofips!="" & year<. & sex<. & agec11!=""
 	merge m:1 stcofips sex agec11 using temp/control_age_tmp.dta, assert(3) keepus(as_n) nogen
-	ren as_n as_n_co
-	* merge m:1 stcofips agec3 langc5 lep using temp/control_lc5ac3lep_tmp.dta, assert(1 3) // broad lang/age detail
-	* merge ... // place of birth detail ~ help allocation within multi-county pumas
+	** merge control totals by lc5/lep/ac3 
+	/* assert stcofips!="" & year<. & sex<. & (agec3=="" | langc5!="")	
+	merge m:1 stcofips agec3 langc5 lep using temp/control_lc5ac3lep_tmp.dta, assert(1 3) // broad lang/age detail
+	drop _merge */
+	** merge place of birth detail ~ help allocation within multi-county pumas
+	** TBD
+	** merge control totals by 2015 langc39 
 	assert stcofips!="" & year<. & (lep<.|agec11=="0004") & (langc39!=""|agec11=="0004")
 	merge m:1 stcofips langc39 lep using temp/control_langc39_tmp.dta, assert(1 3) keepus(lc39_n) // old county lang39
 	ren lc39_n lc39_n_co
 	assert _merge==3 if agec11!="0004"
 	drop _merge
+	** merge latest county totals by langc12/lep
 	assert stcofips!="" & year<. & (lep<.|agec11=="0004") & (langc12!=""|agec11=="0004")
 	merge m:1 stcofips year langc12 lep using temp/control_langc12_tmp.dta, assert(1 3) keepus(lc12_n) // latest county lang12
 	ren lc12_n lc12_n_co
 	assert _merge==3 if agec11!="0004"
 	drop _merge
+	** merge OR state totals by langc42/lep
 	assert stfips!="" & year<. & (lep<.|agec11=="0004") & (langc42!=""|agec11=="0004")
 	merge m:1 stfips year langc42 lep using temp/control_langc42st_tmp.dta, assert(1 3) keepus(lc42st_n) // state total by lang42
 	assert _merge==3 if (agec11!="0004" & stfips=="41") // no state control for Clark Co.
 	drop _merge
-save 5ACS20_ORWA_RELDPRI_raceeth_wip.dta, replace
-DONE TO HERe
-END
-use 5ACS20_ORWA_RELDPRI_raceeth_wip.dta, clear
-!! problem here: the totals don't agree between sum of county c16001 (eg arabic 9662) and state b16001 (eg arabic 9144, which matches data.census.gov)
-
-	// RAKE by detailed age/sex (gen pwt1) THEN by ... 
-	svyset [pw=pwgtp], sdr(pwgtp1-pwgtp80) vce(sdr) mse
-	set seed 1337170
-	survwgt poststratify pwgtp, by(stcofips agec11 sex) totvar(as_n) gen(pwt1) // control to age-sex
-	tab stcofips [iw=pwt1] // total pop
-	*gen toskip=inlist(stcofips,"JACKSON","DOUGLAS","LANE","DESCHUTES","MARION","MULTNOMAH","CLACKAMAS","WASHINGTON","CLARK,WA") // single-county PUMAs
-	gen toskip=inlist(stcofips,"41029","41019","41039","41017","41047","41051","41005","41067","53011") // single-county PUMAs
-	tab stcofips toskip
-	set seed 1337170
-	survwgt poststratify pwt1 if toskip==0 & agep>=5, by(stcofips langc39 lep) totvar(lc39_n) gen(pwt2) // control to 2015 detailed languages (for multi-county PUMAs)
-	replace pwt2=pwt1 if toskip==1 | agep<5
-	tab stcofips [iw=pwt2] 
-	*set seed 1337170
-	*survwgt poststratify pwt2 if agep>=5, by(stcofips agec3 lep langc5) totvar(ac3_lc5_lep_n) gen(pwt3) // control to broad age*broad language
-	*replace pwt3=pwt2 if agep<5
-	set seed 1337170
-	survwgt poststratify pwt2 if agep>=5, by(stcofips langc12 lep) totvar(lc12_n) gen(pwt3) // control to last lang12 counties (all including Clark, WA)
-	replace pwt3=pwt2 if agep<5
-	tab stcofips [iw=pwt3] 
-	
-	// rake Oregon counties to state lang42 (works if done first; bugfixing why not when done in sequence)
-	egen id1=group(stfips langc42 lep) if stfips=="41"
-	egen id2=group(stcofips langc12 lep) if stfips=="41"
+	// define weights
 	svrset set pw pwgtp
 	svrset set rw pwgtp1-pwgtp80
 	svyset [pw=pwgtp], sdr(pwgtp1-pwgtp80) vce(sdr) mse
-	bys stcofips langc12: gen listme=_n
-	table langc12 lep if stfips=="41" & listme==1, stat(sum lc12_n) nototal
-	table langc42 lep if stfips=="41", stat(mean lc42st_n) nototal
+	// PRE-RAKE: small counties to their 2015 lang39 (last detailed county tables)
+	gen touse=!inlist(stcofips,"41029","41019","41039","41017","41047","41051","41005","41067","53011") // single-county PUMAs
+	set seed 1337170
+	survwgt poststratify pwgtp if touse==1 & agep>=5, by(stcofips langc39 lep) totvar(lc39_n) gen(pwt1) // control to 2015 detailed languages (for multi-county PUMAs)
+	replace pwt1=pwgtp if touse==0 | agep<5
+	replace pwt1=1e-3 if pwt1==0 | pwt1==. // ensure non-zero probability of selection in future rake
+	// PRE-RAKE: small counties to their pobp to improve detailed language distribution
+	*tbd; will require more fillin and pre-seed by donor obs
+	// RAKE. OR counties to state lang42 + county lang12 + county age/sex
+	egen id1=group(stfips langc42 lep)
+	egen id2=group(stcofips langc12 lep)
+	egen id3=group(stcofips agec11 sex)
 	set seed 13371701
-	survwgt rake pwgtp if stfips=="41" & agep>=5, by(id1 id2) totvars(lc42st_n lc12_n) gen(pwt4) maxrep(255) // simultaneous rake by county lang12 * state lang42
-	
-	// rake Oregon counties to state lang42 * county lang12 * county age/sex; WA to just Clark County lang12 * county age/sex (for age 5+)
-	
-	
-
->> fails because of conflict beween sum of counties and state total
-!!
-	tab stcofips lep if langc12=="ara" [iw=pwt3]
-	tab stfips lep if langc42=="ara" [iw=pwt3]
-	
-	
-
+	survwgt rake pwt1 if stfips=="41" & agep>=5, by(id1 id2 id3) totvars(lc42st_n lc12_n as_n) gen(pwt3) maxrep(255)
+	// RAKE. WA counties to county lang12 + county age/sex
+	set seed 13371701
+	survwgt rake pwt1 if stfips=="53" & agep>=5, by(id2 id3) totvars(lc12_n as_n) gen(pwt2) maxrep(255)
+	replace pwt3=pwt2 if stfips=="53"
+	// mark final weights and check table and save
+	svyset [pw=pwt3], sdr(pwgtp1-pwgtp80) vce(sdr) mse
+	tab stcofips agec3 if stfips=="41" [iw=pwt3] // check that totals agree ~ OR 3,948,032 age>=5
+	destring stcofips, replace
+	save 5ACS`y'_ORWA_RELDPRI_lang.dta, replace
 end
-langFile 2020
+*langFile 2021
 
-	//
-	// tabulate by langfnl, plus checks
-	collapse (sum) lep_2021=perwt_lep_sr, by(cname langfnl)
-	replace lep_2021=round(lep_2021)
-	merge 1:1 cname langfnl using auxiliary/lang_table.dta
-	drop _merge
-	save auxiliary/lang_table.dta, replace
+// tables by langoha (subset of langfnl, for languages in any county's top10 total or by lep) 
+cap prog drop tablang
+prog def tablang
+	cap use results/results_lang_`1'.dta, clear
+	if _rc {
+		local y=substr("`1'",3,2)
+		use 5ACS`y'_ORWA_RELDPRI_lang.dta, clear
+		** add language categories for use by oha: lang42 + english + ukrainian out of other slavic
+		gen langtmp=langc42
+		replace langtmp="ukr" if langfnl==18 // make ukrainian distinct
+		encode langtmp, gen(langoha)
+		labmask langoha, values(langtmp) // matrices can only store numeric
+		** init table storage
+		mat master=J(1,13,.)
+		mat colnames master="stcofips" "sex" "langoha" "agec3" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+		** rectangularize (to ensure 37 rows for each svy total results matrix)
+		sort stcofips agec3 langoha
+		fillin stcofips agec3 langoha
+		qui for var pwt3 pwgtp1-pwgtp80: replace X=0 if X==. 
+		drop _fillin
+		** aggregate matrices
+		gen byte one=1 
+		levelsof agec3, local(ages)
+		levelsof langoha, local(ls)
+		qui foreach l of local ls {
+			nois di _newline ". Language: `l' | Age: " _cont
+			foreach a of local ages {
+				nois di "`a'." _cont
+				if "`a'"=="0004" { // no languages for age 0-4
+					mat table=J(37,9,0)
+				}
+				else {
+					svy sdr: total one if agec3=="`a'" & langoha==`l', over(stcofips) 
+					mat table=r(table)'
+				}
+				mata: st_matrix("stcofips", range(1,37,1))
+				mat sex=J(37,1,0)
+				mat lang=J(37,1,`l')
+				mat agec3=J(37,1,`a')
+				mat result=stcofips,sex,lang,agec3,table
+				mat master=master\result
+			}
+		}
+		** replace data with stored matrices
+		drop _all
+		svmat master, names(col)
+		label values lang langoha
+		save results/results_lang_`1'.dta, replace
+	}
+	** clean for excel export
+	drop if stcofips==.
+	collapse (sum) b, by(stcofips lang agec3)
+	reshape wide b, i(stcofips agec3) j(lang )
+	rename b* lang*_
+	reshape wide lang*_, i(stcofips) j(agec3)
+	order *, seq
+	order stcofips
+	*for var lang*: replace X=round(X,.01)
+end
+*tablang 2021
+
+// tables for splitting persian by farsi/dari and chinese by simplified/traditional
 
 
 * Notes:
-* The data source is the 2016-20 5-year ACS PUMS and detailed tables. The reweighting process results in non-integer counts, and these have been left as is. They can be displayed as or rounded to whole counts (in which case, rounding errors will mean that totals may not sum exactly).
-* Not all households have income or know poverty status; therefore, sum by income quintiles or income to poverty ratio will not sum to total population.
+* The data source is the 5-year ACS PUMS and associated 100% tabulations. PUMS results have been adjusted for consistency with county level tabulations from the 100% ACS.
+* Therefore, totals may differ from data in published ACS tables or from ACS PUMS calculations with unadjusted person or household weights.
+* The reweighting process results in non-integer counts, and these have been left as is. They can be displayed as or rounded to whole counts (in which case, rounding errors will mean that totals may not sum exactly).
 * Language is assessed for the population age 5+ only; therefore, sums across languages will not sum to the total population.
-* Disability status is assessed only for the civilian noninstitutionalized population; therefore, sums across disability status will not sum to total population.
-* Total population includes households and group quarters; therefore, totals by households with/without children will not sum to total population.
-* Totals by REALD race/ethnicity are assigned using pre-production code and then adjusted for consistency at the county level by OMB race/ethnicity only. Subgroups for White, Asian, or Black are implicitly treated as distributed proportional to population across each county of a multi-county PUMA. Approaches are under ongoing development and results may not match totals published elsewhere.
-* County level totals by REALD race/ethnicity are pegged to the population of each OMB race/ethnicity; OMB race/ethnicity and same sex cohabiting couples are from the 2020 Census Demographic and Housing Characteristics (DHC) file, not the ACS, due to low representation in the latter. However, the DHC totals by race/ethnicity are proportionally adjusted up/down for consistency with the ACS total population counts for each county.
-* Totals and subgroups by income quintile and income to poverty ratio are implicitly treated as distributed proportional to population across each county of a multi-county PUMA. Totals by income quintile and poverty to income ratio may not match totals published elsewhere.
-* Totals across subgroups and of all counties may not be equal to independently calculated overall totals due to rounding. For example, the state total from counties may not exactly equal a state total published elsewhere.
-* Tabulations made from ACS PUMS have been made consistent with published tables by age by post-stratification weights. Therefore, totals may differ from data in published ACS tables or from ACS PUMS calculations with unadjusted person or household weights.
-* RUCA codes for 2020 census tracts have not been determined. Therefore, RUCA codes for the purpose of urban (codes 1--3) or rural (codes 4--10) status determination are assigned to 2020 tracts on the basis of the 2010 tracts that best approximate the boundaries of the 2020 tracts.
-
+* Detailed language is implicitly treated as distributed proportionally to population of the aggregated language family between each county of a multi-county PUMA 
+* For example, two distinct languages in the PUMS that are part of the same 12-way classification and known at a PUMA level where the PUMA countains multiple counties will be proportionally divided between the counties according to the county's share of total speakers of the languages in the 12-way classification.
+* Disability status is assessed only for the civilian noninstitutionalized population (excluding the population in institutional group quarters such as skilled nursing facilities whose disability status is not surveyed); therefore, sums across disability status will not sum to total population.
+* REALD race/ethnicity is imputed using language, place of birth, and other person-level characteristics, and then adjusted for consistency at the county level by OMB race/ethnicity only. 
+* REALD subgroups for White, Asian, or Black are implicitly treated as distributed proportionally to population across each county of a multi-county PUMA. 
+* REALD approaches are under ongoing development and results may not match totals published elsewhere.
