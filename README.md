@@ -79,12 +79,12 @@ The ACS PUMS includes replicate weights, which allow analysts to assess the stat
 # RELEASE STATUS
 The 5-year ACS PUMS for 2020 and 2021 have been processed. Summary results from the 2021 5-year ACS are included in the published Excel file. The dates of subsequent ACS releases is provided here:
 
-|ACS Series | Tables Date | PUMS Date | Midpoint | Status
-|5ACS19     | 2020-12-10 | 2021-1-14 | 2017 | WIP
-|5ACS20     | 2022-3-17 | 2022-3-31  | 2018 | Complete
-|5ACS21     | 2022-12-8 | 2023-1-26  | 2019 | Complete
-|5ACS22     | 2023-12-7 | 2024-1-25  | 2020 | WIP
-|5ACS23     | TBD       | TBD        | 2021 | TBD
+|**ACS Series** | **Tables Date** | **PUMS Date** | **Midpoint** | **Status** |
+|5ACS19     | 2020-12-10 | 2021-1-14 | 2017 | WIP |
+|5ACS20     | 2022-3-17 | 2022-3-31  | 2018 | Complete |
+|5ACS21     | 2022-12-8 | 2023-1-26  | 2019 | Complete |
+|5ACS22     | 2023-12-7 | 2024-1-25  | 2020 | WIP |
+|5ACS23     | TBD       | TBD        | 2021 | TBD |
 
 # FUNDING ACKNOWLEDGEMENT
 OHA IGA#179509 "County-level REALD population estimates"
