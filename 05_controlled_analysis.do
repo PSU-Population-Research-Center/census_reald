@@ -22,8 +22,9 @@
 	- TBD: incorporate code from language analysis as a separate dofile or module within this file
 	- TBD: add error metric for tracking iterations in disability reweighting to aid decision on # of iterations
 	- TBD: consider adding 06-10 PUMS for small counties only to inflate representation of rare conditions (especially languages)
-	- TBD: move control generation for REALD here and deprecate 01_prep_control.do
+	- TBD: move control generation for REALD here and deprecate 01_prep_control.do (or move control prep from here to there)
 changelog: ~ timestamp for deliverables from 2024-04-------
+	v12: updated language tables to include split by lep*agecat for each language.
 	v11: completed sequential raking (1) by langc39-lep (2) by lang12-lep-agesex-langc42st.
 	v10: working language rake, but excluding langc39 rake for small counties
 	v09: changing donor dataset to be broader time and geography PUMS 
@@ -904,7 +905,7 @@ end
 
 	
 	
-/***
+/*** part 3
  *                                                                                         
  *    .---.                                                                                
  *    |   |             _..._                                               __.....__      
@@ -1461,34 +1462,42 @@ prog def tablang
 		encode langtmp, gen(langoha)
 		labmask langoha, values(langtmp) // matrices can only store numeric
 		** init table storage
-		mat master=J(1,13,.)
-		mat colnames master="stcofips" "sex" "langoha" "agec3" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+		mat master=J(1,14,.)
+		mat colnames master="stcofips" "sex" "langoha" "lep" "agec3" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
 		** rectangularize (to ensure 37 rows for each svy total results matrix)
-		sort stcofips agec3 langoha
-		fillin stcofips agec3 langoha
+		sort stcofips agec3 langoha lep
+		fillin stcofips agec3 langoha lep
 		qui for var pwt3 pwgtp1-pwgtp80: replace X=0 if X==. 
 		drop _fillin
-		** aggregate matrices
+		** aggregate matrices (lang*lep*agecat)
 		gen byte one=1 
 		levelsof agec3, local(ages)
 		levelsof langoha, local(ls)
 		qui foreach l of local ls {
-			nois di _newline ". Language: `l' | Age: " _cont
-			foreach a of local ages {
-				nois di "`a'." _cont
-				if "`a'"=="0004" { // no languages for age 0-4
-					mat table=J(37,9,0)
+			local label: label langoha `l'
+			nois di _newline ". Language: `l' (`label') | Age/LEP: " _cont
+			forvalues e=0/1 {
+				foreach a of local ages {
+					nois di "`a'/`e' " _cont
+					if "`a'"=="0004" | (`e'==1 & "`label'"=="eng") { // no languages for age 0-4 and no LEP for english
+						mat table=J(37,9,0)
+					}
+					else {
+						cap svy sdr: total one if agec3=="`a'" & lep==`e' & langoha==`l', over(stcofips) 
+						if !_rc mat table=r(table)'
+						else if _rc==461 { // if subpopulation is zero ~ check to confirm
+							nois di _newline " >> zero! >> " _cont
+							mat table=J(37,9,0) 
+						}
+					}
+					mata: st_matrix("stcofips", range(1,37,1))
+					mat sex=J(37,1,0)
+					mat lang=J(37,1,`l')
+					mat lep=J(37,1,`e')
+					mat agec3=J(37,1,`a')
+					mat result=stcofips,sex,lang,lep,agec3,table
+					mat master=master\result
 				}
-				else {
-					svy sdr: total one if agec3=="`a'" & langoha==`l', over(stcofips) 
-					mat table=r(table)'
-				}
-				mata: st_matrix("stcofips", range(1,37,1))
-				mat sex=J(37,1,0)
-				mat lang=J(37,1,`l')
-				mat agec3=J(37,1,`a')
-				mat result=stcofips,sex,lang,agec3,table
-				mat master=master\result
 			}
 		}
 		** replace data with stored matrices
@@ -1499,13 +1508,15 @@ prog def tablang
 	}
 	** clean for excel export
 	drop if stcofips==.
-	collapse (sum) b, by(stcofips lang agec3)
-	reshape wide b, i(stcofips agec3) j(lang )
+	collapse (sum) b, by(stcofips lang lep agec3)
+	reshape wide b, i(stcofips agec3 lep ) j(lang)
 	rename b* lang*_
+	reshape wide lang*_, i(stcofips agec3) j(lep)
+	rename lang*_* lang*_*_	
 	reshape wide lang*_, i(stcofips) j(agec3)
 	order *, seq
 	order stcofips
-	*for var lang*: replace X=round(X,.01)
+	*for var lang*: replace X=round(X,.01) // by default, results are not rounded
 end
 *tablang 2021
 
