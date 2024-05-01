@@ -76,7 +76,7 @@ After the REALD characteristics are imputed from the available PUMS data fields,
 # PROPAGATING UNCERTAINTY TO FINAL CONFIDENCE INTERVALS
 The ACS PUMS includes replicate weights, which allow analysts to assess the statistical uncertainty in most types of tabulations generated from the PUMS. The ACS published tables also generally include 90% margins of error, which can be converted back to standard errors for other confidence levels. These sources of statistical uncertainty can be combined in the final estimates by repeated measurements drawn from normal distributions defined by the point estimates and standard errors in the ACS. Over the course of many repeated simulations, the results can be collapsed into cumulative means and standard errors. There are additional errors associated with the assumptions that are inherent in the maximum entropy imputation weighting method, which are nonquantifiable and not represented in the final means and standard errors. 
 
-# RELEASE STATUS
+# RELEASE NOTES
 The 5-year ACS PUMS for 2020 and 2021 have been processed. Summary results from the 2021 5-year ACS are included in the published Excel file. The dates of subsequent ACS releases is provided here:
 
 | **ACS Series** | **Tables Date** | **PUMS Date** | **Midpoint** | **Status** |
@@ -85,6 +85,15 @@ The 5-year ACS PUMS for 2020 and 2021 have been processed. Summary results from 
 | 5ACS21 | 2022-12-8 | 2023-1-26 | 2019 | Complete |
 | 5ACS22 | 2023-12-7 | 2024-1-25 | 2020 | WIP |
 | 5ACS23 | TBD | TBD | 2021 | TBD |
+
+The data source is the 5-year ACS PUMS and associated 100% tabulations. PUMS results have been adjusted for consistency with county level tabulations from the 100% ACS. Therefore, totals may differ from data in published ACS tables or from ACS PUMS calculations with unadjusted person or household weights. The reweighting process results in non-integer counts, and these have been left as is. They can be displayed as or rounded to whole counts (in which case, rounding errors will mean that totals may not sum exactly).
+
+Language is assessed for the population age 5+ only; therefore, sums across languages will not sum to the total population. Detailed language is implicitly treated as distributed proportionally to population of the aggregated language family between each county of a multi-county PUMA. For example, two distinct languages in the PUMS that are part of the same 12-way classification and known at a PUMA level where the PUMA countains multiple counties will be proportionally divided between the counties according to the county's share of total speakers of the languages in the 12-way classification.
+
+Disability status is assessed only for the civilian noninstitutionalized population (excluding the population in institutional group quarters such as skilled nursing facilities whose disability status is not surveyed); therefore, sums across disability status will not sum to total population.
+
+REALD race/ethnicity is imputed using language, place of birth, and other person-level characteristics, and then adjusted for consistency at the county level by OMB race/ethnicity only. REALD subgroups for White, Asian, or Black are implicitly treated as distributed proportionally to population across each county of a multi-county PUMA. REALD approaches are under ongoing development and results may not match totals published elsewhere.
+
 
 # FUNDING ACKNOWLEDGEMENT
 OHA IGA#179509 "County-level REALD population estimates"
