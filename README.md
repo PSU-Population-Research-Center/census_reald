@@ -101,7 +101,7 @@ Because of the narrow focus of these tabulations, the constraining totals chosen
 [B03002](https://censusreporter.org/tables/B03002/): Hispanic or Latino Origin by Race<br />
 [B05013](https://censusreporter.org/tables/B05013/): Sex by Age for the Foreign-born Population<br />
 [B16001](https://censusreporter.org/tables/B16001/): Language Spoken at Home by Ability to Speak English<br />
-[B16004](https://censusreporter.org/tables/B16004/): Age by Language Spoken at Home by Ability to Speak English
+[B16004](https://censusreporter.org/tables/B16004/): Age by Language Spoken at Home by Ability to Speak English<br />
 [B16005\*](https://censusreporter.org/tables/B16005/): Nativity by Language Spoken at Home by Ability to Speak English<br />
 [B18101\*](https://censusreporter.org/tables/B18101/): Sex by Age by Disability Status<br />
 [B18102](https://censusreporter.org/tables/B18102/): Sex by Age by Hearing Difficulty<br />
