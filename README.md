@@ -13,7 +13,8 @@ Population by Disability, self-care (drs): [2019](results/results_ddrsoicv2_2019
 Population by Disability, ambulatory (phy): [2019](results/results_dphyoicv2_2019.dta) [2020](results/results_dphyoicv2_2020.dta) [2021](results/results_dphyoicv2_2021.dta) [2022](results/results_dphyoicv2_2022.dta)<br />
 Population by Disability, cognitive (rem): [2019](results/results_dremoicv2_2019.dta) [2020](results/results_dremoicv2_2020.dta) [2021](results/results_dremoicv2_2021.dta) [2022](results/results_dremoicv2_2022.dta)<br />
 Population by Disability, independent living (out): [2019](results/results_doutoicv2_2019.dta) [2020](results/results_doutoicv2_2020.dta) [2021](results/results_doutoicv2_2021.dta) [2022](results/results_doutoicv2_2022.dta)<br />
-Population by LEP and Language Spoken at Home (lanx/lanp): [2019](results/results_lang_2019.dta) [2020](results/results_lang_2020.dta) [2021](results/results_lang_2021.dta) [2022](results/results_lang_2022.dta)<br />
+Population by LEP and Language Spoken at Home (counties): [2019](results/results_lang_2019.dta) [2020](results/results_lang_2020.dta) [2021](results/results_lang_2021.dta) [2022](results/results_lang_2022.dta)<br />
+Population by LEP and Language Spoken at Home (state): [2019](results/results_langst_2019.dta) [2020](results/results_langst_2020.dta) [2021](results/results_langst_2021.dta) [2022](results/results_langst_2022.dta)<br />
 
 # Data and Methods
 The ACS is a nationally representative sample of approximately 2% of the US resident population each year. Results of the ACS data are published as tables, aggregated into a variety of summary file releases such as subject tables, demographic profiles, detailed tables, and others. The ACS tables do not contain sufficient detail to count the population by REALD characteristics. Therefore, the starting estimates for the population by REALD characteristics are estimated from the ACS PUMS, a microdata sample of individual ACS responses. 
