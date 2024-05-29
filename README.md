@@ -41,7 +41,7 @@ The REALD & SOGI unit of OHA developed coding heuristics which use the following
 
 In order to protect respondent privacy and prevent reidentification of households, the ACS PUMS employs several disclosure avoidance strategies, including aggregation of responses to geographies that represent 100,000 persons or more as of the last decennial Census. These geographies, called PUMAs, are made up of contiguous census tracts, and are updated after each decennial census. Because of the 100,000 persons minimum threshold, PUMAs may be larger or smaller than counties, and may contain parts of counties when a county contains more than one tract. For example, a consistent grouping which delineates whole counties in Oregon (plus Clark County, WA) only includes 16 geographical units (PUMA-Counties or PUMAC), ranging from 1 to 9 counties in each area:
 
-**2010 Census PUMACs (2012-2021 PUMS):**
+**2010 Census PUMACs (2012-2021 PUMS):** <br />
 1: BAKER, UMATILLA, UNION, WALLOWA<br />
 2: CROOK, GILLIAM, GRANT, HOOD RIVER, JEFFERSON, MORROW, SHERMAN, WASCO, WHEELER<br />
 3: HARNEY, KLAMATH, LAKE, MALHEUR<br />
@@ -59,7 +59,7 @@ In order to protect respondent privacy and prevent reidentification of household
 15: WASHINGTON<br />
 16: CLARK (WA)<br />
 
-**2020 Census PUMACs (2022-2031 PUMS):**
+**2020 Census PUMACs (2022-2031 PUMS):** <br />
 1: BAKER, GRANT, GILLIAM, HOOD RIVER, MORROW, SHERMAN, UMATILLA, UNION, WASCO, WALLOWA, WHEELER<br />
 2: CROOK, JEFFERSON, DESCHUTES<br />
 3: HARNEY, KLAMATH, LAKE, MALHEUR<br />
@@ -81,7 +81,7 @@ The PUMACs represent the minimum group of counties that can be identified by a s
 
 To obtain county-level data from the PUMS dataset, we adopt an allocation approach based on maximum entropy imputation weighting, which has been demonstrated to produce accurate characteristics from census microdata samples at the PUMA level when downscaled to the census tract level and compared against tables generated from 100% of the census microdata.<sup>[\[1\]](#footnote-1)</sup> The approach relies on the use of meaningful ‘constraining variables’ which guide the allocation of data from the PUMA to the tract or county level. The most important constraining totals are those which have a high degree of variation between the lower-level geographic units. For example, binary sex would be a poor constraint because it may not be differently distributed at the county level compared to the PUMA level; language spoken at home is certainly more important when there are intra-PUMA regional differences in distribution of households who speak different languages.
 
-The final collection of tables includes REALD characteristics broken down by age group (county level tabulations will include the age groups 0-4, 5-17, 18-64, and 65+), including:
+The final collection of tables includes REALD characteristics broken down by age group (county level tabulations will include the age groups 0-4, 5-17, 18-64, and 65+), including:<br />
 - detailed REALD race/ethnicity;<br />
 - OMB race (based on the rarest race heuristic);<sup>[\[2\]](#footnote-2)</sup><br />
 - Any disability;<br />
@@ -92,17 +92,25 @@ The final collection of tables includes REALD characteristics broken down by age
 
 Because of the narrow focus of these tabulations, the constraining totals chosen are those which correspond as closely as possible to the required characteristics (and their joint distributions). The marginal totals at the tract or county level from the following ACS detailed tables are used:
 
-| **ACS Table** | **Description** | **ACS Table** | **Description** |
-| [B01001\*](https://censusreporter.org/tables/B01001/) | Sex by Age | [B16004](https://censusreporter.org/tables/B16004/) | Age by Language Spoken at Home by Ability to Speak English |
-| [B02003](https://censusreporter.org/tables/B02003/) | Detailed Race | [B16005\*](https://censusreporter.org/tables/B16005/) | Nativity by Language Spoken at Home by Ability to Speak English |
-| [B02014](https://censusreporter.org/tables/B02014/) | American Indian and Alaska Native Alone for Selected Tribal Groupings | [B18101\*](https://censusreporter.org/tables/B18101/) | Sex by Age by Disability Status |
-| [B02015](https://censusreporter.org/tables/B02015/) | Asian Alone by Selected Groups | [B18102](https://censusreporter.org/tables/B18102/) | Sex by Age by Hearing Difficulty |
-| [B02016](https://censusreporter.org/tables/B02016/) | Native Hawaiian and Other Pacific Islander Alone by Selected Groups | [B18103](https://censusreporter.org/tables/B18103/) | Sex by Age by Vision Difficulty |
-| [B03001](https://censusreporter.org/tables/B03001/) | Hispanic or Latino Origin by Specific Origin | [B18104](https://censusreporter.org/tables/B18104/) | Sex by Age by Cognitive Difficulty |
-| [B03002](https://censusreporter.org/tables/B03002/) | Hispanic or Latino Origin by Race | [B18105](https://censusreporter.org/tables/B18105/) | Sex by Age by Ambulatory Difficulty |
-| [B05013](https://censusreporter.org/tables/B05013/) | Sex by Age for the Foreign-born Population | [B18106](https://censusreporter.org/tables/B18106/) | Sex by Age by Self-care Difficulty |
-| [B16001](https://censusreporter.org/tables/B16001/) | Language Spoken at Home by Ability to Speak English | [B18107](https://censusreporter.org/tables/B18107/) | Sex by Age by Independent Living Difficulty |
-| \*: indicates that tables iterations are available by OMB race/ethnicity. |     |     |     |
+[B01001\*](https://censusreporter.org/tables/B01001/): Sex by Age<br />
+[B02003](https://censusreporter.org/tables/B02003/): Detailed Race<br />
+[B02014](https://censusreporter.org/tables/B02014/): American Indian and Alaska Native Alone for Selected Tribal Groupings<br />
+[B02015](https://censusreporter.org/tables/B02015/): Asian Alone by Selected Groups<br />
+[B02016](https://censusreporter.org/tables/B02016/): Native Hawaiian and Other Pacific Islander Alone by Selected Groups<br />
+[B03001](https://censusreporter.org/tables/B03001/): Hispanic or Latino Origin by Specific Origin<br />
+[B03002](https://censusreporter.org/tables/B03002/): Hispanic or Latino Origin by Race<br />
+[B05013](https://censusreporter.org/tables/B05013/): Sex by Age for the Foreign-born Population<br />
+[B16001](https://censusreporter.org/tables/B16001/): Language Spoken at Home by Ability to Speak English<br />
+[B16004](https://censusreporter.org/tables/B16004/): Age by Language Spoken at Home by Ability to Speak English
+[B16005\*](https://censusreporter.org/tables/B16005/): Nativity by Language Spoken at Home by Ability to Speak English<br />
+[B18101\*](https://censusreporter.org/tables/B18101/): Sex by Age by Disability Status<br />
+[B18102](https://censusreporter.org/tables/B18102/): Sex by Age by Hearing Difficulty<br />
+[B18103](https://censusreporter.org/tables/B18103/): Sex by Age by Vision Difficulty<br />
+[B18104](https://censusreporter.org/tables/B18104/): Sex by Age by Cognitive Difficulty<br />
+[B18105](https://censusreporter.org/tables/B18105/): Sex by Age by Ambulatory Difficulty<br />
+[B18106](https://censusreporter.org/tables/B18106/): Sex by Age by Self-care Difficulty<br />
+[B18107](https://censusreporter.org/tables/B18107/): Sex by Age by Independent Living Difficulty<br />
+\*: indicates that tables iterations are available by OMB race/ethnicity.
 
 After the REALD characteristics are imputed from the available PUMS data fields, the records are segmented by PUMA, and the original data fields are used to impute new weights that accord to the small area constraining totals for each of the counties that constitute the multi-county PUMAs.
 
