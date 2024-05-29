@@ -1,17 +1,5 @@
 theme: jekyll-theme-dinky
 title: CENSUS_REALD
 description: ...
-
-# Images (e.g., your profile picture and your website's favicon) 
-# "favicon" and "favicon_dark" are used for the light and dark modes, respectively. 
-avatar: ./assets/img/avatar.png
-#favicon: ./assets/img/favicon.png
-#favicon_dark: ./assets/img/favicon-dark.png
-
-# Footnote
-# You may use the option to disable the footnote, "Powered by Jekyll and Minimal Light theme."
+#avatar: ./assets/img/avatar.png
 enable_footnote: false
-
-# Auto Dark Mode
-# You may use the option to disable the automatic dark theme
-auto_dark_mode: false
