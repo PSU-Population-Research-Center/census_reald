@@ -1,3 +1,7 @@
+<details> <summary> HERE TEXT SUCH AS CLICK ME </summary>
+LOTS OF TEXT, OR CODE , SOMETHING ONLY USEFUL FOR INTERESTED PARTIES
+</details>
+
 # Downloads
 Downloads are currently available as Stata datasets only, where the file year refers to the final year of the 5-year ACS data release. Each dataset contains fields identifying the geography (stcofips, the state and or county FIPS codes), the subpopulation for which the estimates are generated, and the estimate (b) and standard error of the estimate (se).
 
