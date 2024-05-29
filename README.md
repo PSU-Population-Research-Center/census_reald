@@ -1,5 +1,5 @@
-<details> <summary> HERE TEXT SUCH AS CLICK ME </summary>
-LOTS OF TEXT, OR CODE , SOMETHING ONLY USEFUL FOR INTERESTED PARTIES
+<details> <summary> #Population Data in Oregon REALD categories </summary>
+Information and downloads for the project, “County-level REALD population estimates”, producing novel data on race, ethnicity, language, and disability from American Community Survey (ACS) data at mixed spatial scales for Oregon counties and for Clark County, WA.
 </details>
 
 # Downloads
