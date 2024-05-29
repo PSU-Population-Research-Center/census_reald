@@ -3,17 +3,15 @@
 ** author: sharygin@pdx.edu
 /* notes:
 	- prerequisites:
-		- 01_varstable_api.xlsx = list of equivalencies between ACS tables and PUMS, for API calls
 		- path to curl specified in global macro $curl
 		- OHA/ACS_Setup_2v11_RELD_ORandWA.do = based on ACS2017_21Setup_2v11RELD_ORandWA.do; adds race/ethnicity and disability to PUMS
 		- OHA/reldpri.do = assign primary race based on REALD
 		- ACS/migsp.do; pobp.do; anc.do; rachisp.do; lanp.do = adds value labels to ACS PUMS
 	- outputs:
 		- 5ACS`y'_ORWA_RELDPRI.dta = treated PUMS for Oregon + Clark Co, WA with primary race added
-	- to run
-		- run after 02_prep_control.do
-	- TBD: use colrange to speed up csv reading. Add definitions for OHA variables "Insur" "Region" "NonInstDi"
-	- TBD: modify regions as needed to reflect change in 2020 pumas
+	version:
+	v02 - updated for post-2020 pumas (starting with 2022 ACS); removed flags for control populations (need to rewrite 05a_raceeth.do)
+	v01 - working version up to 2021
 */
 
 // setup
@@ -35,7 +33,12 @@ prog def preppums
 		!$curl -k "https://www2.census.gov/programs-surveys/acs/data/pums/`year'/5-Year/csv_hor.zip" --output "OR_House.zip"
 		unzipfile "OR_House.zip"
 		import delim using "psam_h41.csv", clear case(upper) delim(",")
-		keep RT SERIALNO ST PUMA WGTP TYPEHUGQ HINCP ADJINC NP HUPAOC HUPARC HUGCL NOC NRC NPP CPLT HHT2 PARTNER R60 R65 WGTP*
+		if inrange(`year',2016,2021) {
+			ren PUMA PUMA10
+			local GEO="PUMA10"
+		}
+		if inrange(`year',2022,2025) local GEO="PUMA10 PUMA20"
+		keep RT SERIALNO ST `GEO' WGTP `TYPE' HINCP ADJINC NP HUPAOC HUPARC HUGCL NOC NRC NPP CPLT HHT2 PARTNER R60 R65 WGTP*
 		gen int YEAR=`year'
 		save OR_House.dta, replace
 		rm "psam_h41.csv"
@@ -43,7 +46,12 @@ prog def preppums
 		!$curl -k "https://www2.census.gov/programs-surveys/acs/data/pums/`year'/5-Year/csv_por.zip" --output "OR_Indiv.zip"
 		unzipfile "OR_Indiv.zip"
 		import delim using "psam_p41.csv", clear case(upper) delim(",")
-		keep RT SERIALNO SPORDER ST PUMA PWGTP SEX AGEP HISP POBP ANC1P ANC2P RAC1P RAC2P RAC3P MIGSP LANP ///
+		if inrange(`year',2016,2021) {
+			ren PUMA PUMA10
+			local GEO="PUMA10"
+		}
+		if inrange(`year',2022,2025) local GEO="PUMA10 PUMA20"
+		keep RT SERIALNO SPORDER ST `GEO' PWGTP SEX AGEP HISP POBP ANC1P ANC2P RAC1P RAC2P RAC3P MIGSP LANP ///
 			RACAIAN RACASN RACBLK RACNH RACNUM RACPI RACSOR RACWHT ///
 			HINS* DIS DOUT DPHY DREM DEYE DEAR DDRS HICOV PUBCOV PRIVCOV RELSHIPP ///
 			WKW PAP POVPIP ENG LANX LANP WAOB GCL GCR MIL PWGTP*
@@ -59,8 +67,22 @@ prog def preppums
 		!$curl -k "https://www2.census.gov/programs-surveys/acs/data/pums/`year'/5-Year/csv_hwa.zip" --output "WA_House.zip"
 		unzipfile "WA_House.zip"
 		import delim using "psam_h53.csv", clear case(upper) delim(",")
-		keep if inlist(PUMA,11101,11102,11103,11104)
-		keep RT SERIALNO ST PUMA WGTP TYPEHUGQ HINCP ADJINC NP HUPAOC HUPARC HUGCL NOC NRC NPP CPLT HHT2 PARTNER R60 R65 WGTP*
+		if `year'<=2015 {
+			local GEO="PUMA00 PUMA10"
+			keep if inlist(PUMA00,2200,2101,2102) | inlist(PUMA10,11101,11102,11103,11104)
+		}
+		if inrange(`year',2016,2021) {
+			ren PUMA PUMA10
+			local GEO="PUMA10"
+			keep if inlist(PUMA10,11101,11102,11103,11104)
+		}
+		if inrange(`year',2022,2025) {
+			local GEO="PUMA10 PUMA20"
+			keep if inlist(PUMA10,11101,11102,11103,11104) | inlist(PUMA20,21101,21102,21103,21104)
+		}
+		if `year'<2020 local TYPE="TYPE"
+		if `year'>=2020 local TYPE="TYPEHUGQ"
+		keep RT SERIALNO ST `GEO' WGTP `TYPE' HINCP ADJINC NP HUPAOC HUPARC HUGCL NOC NRC NPP CPLT HHT2 PARTNER R60 R65 WGTP*
 		gen int YEAR=`year'
 		save "WA_House.dta", replace
 		rm "psam_h53.csv"
@@ -68,8 +90,20 @@ prog def preppums
 		!$curl -k "https://www2.census.gov/programs-surveys/acs/data/pums/`year'/5-Year/csv_pwa.zip" --output "WA_Indiv.zip"
 		unzipfile "WA_Indiv.zip"
 		import delim using "psam_p53.csv", clear case(upper) delim(",")
-		keep if inlist(PUMA,11101,11102,11103,11104)
-		keep RT SERIALNO SPORDER ST PUMA PWGTP SEX AGEP HISP POBP ANC1P ANC2P RAC1P RAC2P RAC3P MIGSP LANP ///
+		if `year'<=2015 {
+			local GEO="PUMA00 PUMA10"
+			keep if inlist(PUMA00,2200,2101,2102) | inlist(PUMA10,11101,11102,11103,11104)
+		}
+		if inrange(`year',2016,2021) {
+			ren PUMA PUMA10
+			local GEO="PUMA10"
+			keep if inlist(PUMA10,11101,11102,11103,11104)
+		}
+		if inrange(`year',2022,2025) {
+			local GEO="PUMA10 PUMA20"
+			keep if inlist(PUMA10,11101,11102,11103,11104) | inlist(PUMA20,21101,21102,21103,21104)
+		}
+		keep RT SERIALNO SPORDER ST `GEO' PWGTP SEX AGEP HISP POBP ANC1P ANC2P RAC1P RAC2P RAC3P MIGSP LANP ///
 			RACAIAN RACASN RACBLK RACNH RACNUM RACPI RACSOR RACWHT ///
 			HINS* DIS DOUT DPHY DREM DEYE DEAR DDRS HICOV PUBCOV PRIVCOV RELSHIPP ///
 			WKW PAP POVPIP ENG LANX LANP WAOB GCL GCR MIL PWGTP*
@@ -84,19 +118,6 @@ prog def preppums
 		// cleanup and save result (based on "ACS201721_Setup_1v8_ORandWA.do")
 		gen byte Male=SEX==1
 		gen byte Female=SEX==2
-		gen byte EastOR=(ST==41 & PUMA==100)
-		gen byte WashCo=(ST==41 & inrange(PUMA,1320,1324))
-		gen byte MultCo=(ST==41 & inlist(PUMA,1301,1302,1303,1305,1314,1316))
-		gen byte ClackCo=(ST==41 & inlist(PUMA,1317,1318,1319))
-		gen byte YamPCo=(ST==41 & PUMA==1200)
-		gen byte OHAeeoc=WashCo==1|MultCo==1|YamPCo==1|(ST==41 & inlist(PUMA,1103,1104,1105,705,600))
-		gen byte ClarkCo=(ST==53 & inrange(PUMA,11101,11104))
-		label var OHAeeoc "Tri Co., Marion, Lane, Linn/Benton, Yamhill/Polk"
-		label var EastOR "Umatilla, Union, Baker & Wallowa Counties"
-		label var WashCo "Wash Co"
-		label var MultCo "Mult Co"
-		label var YamPCo "Yamhill & Polk Counties"
-		label var ClarkCo "Clark Co"
 		gen byte Insur=.
 		replace Insur=0 if PUBCOV==2 & PRIVCOV==1
 		replace Insur=1 if PUBCOV==1 & Insur==.
@@ -104,21 +125,6 @@ prog def preppums
 		label define Insur 0 "PrivInsurOnly" 1 "PubInsur" 2 "NoInsur", modify
 		label value Insur Insur  
 		label var Insur "Health Insur type"
-		gen byte Region = 1 if (WashCo==1|MultCo==1|ClackCo==1) // TriCnty==1
-		replace Region = 1 if PUMA==200 // ColRiv==1	
-		replace Region = 2 if inlist(PUMA,1103,1104,1105) // MarionCo==1
-		replace Region = 2 if inlist(PUMA,703,704,705) // LaneCo==1
-		replace Region = 2 if PUMA==1200 // YamPolkCo==1
-		replace Region = 2 if PUMA==600 // LinnBenCo==1
-		replace Region = 3 if inlist(PUMA,901,902) // JacksonCo==1
-		replace Region = 3 if PUMA==1000 // Douglas==1
-		replace Region = 4 if PUMA==300 // SOEasOR==1
-		replace Region = 4 if PUMA==100 // EastOR==1	
-		replace Region = 4 if PUMA==400 // DescCo==1	
-		replace Region = 5 if PUMA==500 // NCcoast==1	
-		replace Region = 5 if PUMA==800 // SWcoasOR==1	
-		label def Region 1 "Mult/Clack/Wash/Col.Gorge" 2 "Marion/Lane/Yamhill/Polk/Lane" 3 "Southern OR" 4 "SE & Eastern OR" 5 "OR Coast", modify 
-		label value Region Region
 		gen NonInstDi=(RELSHIPP!=37)
 		label var NonInstDi "Non-Institutionalized"
 		gen NonInsCil=1
@@ -132,7 +138,7 @@ prog def preppums
 		rm "acs/WA_House.dta"
 	} 
 end
-*preppums 2020 // syntax: `1' is endign year of 5-year ACS of desired file.
+*preppums 2022 // syntax: `1' is endign year of 5-year ACS of desired file.
 
 // assign REALD races and primary race
 capture prog drop pumsreld
@@ -201,86 +207,166 @@ prog def pumsreld
 	gen ombrrace=""	
 	// state and pumas
 	save "5ACS`y'_ORWA_RELDPRI.dta", replace
-	}
 	rm  "5ACS`y'_ORWA_Indiv2v2.dta"
 	rm  "5ACS`y'_ORWA_Indiv3v11.dta"
 end
-*pumsreld 2020
+*pumsreld 2022
 
 // define expansion program (parts 6, 7)
 cap prog drop expandpums
 prog def expandpums
 	args year
 	local y=substr("`year'",3,2)
-	// generate flags in ACS PUMS that correspond to data points in SF tables 
-	import excel using "01_varstable_api.xlsx", sheet(Sheet1) firstrow clear allstring
-	keep if year=="`year'"
-	drop if varname==""
-	dropmiss, force
-	gen cmd="gen byte f"+varname+"=("+filter+")"
-	outfile cmd using acs/varstable_pums.do, replace nolabel noquote 
 	use "5ACS`y'_ORWA_RELDPRI.dta", clear
-	nois do acs/varstable_pums.do // add flags in PUMS that correspond to eligibility to be reweighted by published table totals
-	rm acs/varstable_pums.do // remove, no longer needed.
-	gen byte fdisaby_severe=dis==1 & (dout==1 | dphy==1 | ddrs==1) // excludes hearing, vision, memory; includes ambulatory, self-care, independent living
-	compress // f-prefixed are flags for reweight eligibility
-	// convert PUMAC to county. 
-	ren puma puma10
-	do acs/pumac10.do
-	gen byte factor=.
-	replace factor=4 if pumac==1
-	replace factor=9 if pumac==2
-	replace factor=4 if pumac==3
-	replace factor=4 if pumac==5
-	replace factor=2 if pumac==6
-	replace factor=3 if pumac==8
-	replace factor=2 if pumac==12
-	replace factor=1 if factor==.
-	assert factor<.
-	expand factor, gen(flag)
-	bys serialno sporder: gen listme=_n // should top out at factorvalue.
-	tostring state, replace force
-	gen county=""
-	replace county="001" if pumac==1 & listme==1 // baker
-	replace county="059" if pumac==1 & listme==2 // umatilla
-	replace county="061" if pumac==1 & listme==3 // union
-	replace county="063" if pumac==1 & listme==4 // wallowa
-	replace county="013" if pumac==2 & listme==1 // crook
-	replace county="021" if pumac==2 & listme==2 // gilliam
-	replace county="023" if pumac==2 & listme==3 // grant
-	replace county="027" if pumac==2 & listme==4 // hood river
-	replace county="031" if pumac==2 & listme==5 // jefferson
-	replace county="049" if pumac==2 & listme==6 // morrow
-	replace county="055" if pumac==2 & listme==7 // sherman
-	replace county="065" if pumac==2 & listme==8 // wasco
-	replace county="069" if pumac==2 & listme==9 // wheeler
-	replace county="025" if pumac==3 & listme==1 // harney
-	replace county="035" if pumac==3 & listme==2 // klamath
-	replace county="037" if pumac==3 & listme==3 // lake
-	replace county="045" if pumac==3 & listme==4 // malheur
-	replace county="017" if pumac==4 // deschutes
-	replace county="007" if pumac==5 & listme==1 // clatsop
-	replace county="009" if pumac==5 & listme==2 // columbia
-	replace county="041" if pumac==5 & listme==3 // lincoln
-	replace county="057" if pumac==5 & listme==4 // tillamook
-	replace county="003" if pumac==6 & listme==1 // benton
-	replace county="043" if pumac==6 & listme==2 // linn
-	replace county="039" if pumac==7 // lane
-	replace county="011" if pumac==8 & listme==1 // coos
-	replace county="015" if pumac==8 & listme==2 // curry
-	replace county="033" if pumac==8 & listme==3 // josephine
-	replace county="029" if pumac==9 // jackson
-	replace county="019" if pumac==10 // douglas
-	replace county="047" if pumac==11 // marion
-	replace county="053" if pumac==12 & listme==1 // polk
-	replace county="071" if pumac==12 & listme==2 // yamhill
-	replace county="051" if pumac==13 // multnomah
-	replace county="005" if pumac==14 // clackamas
-	replace county="067" if pumac==15 // washington
-	lab def pumac_lbl 16 "CLARK-WA", add
-	replace county="011" if pumac==. & state=="53" & inrange(puma10,11101,11104)
-	replace pumac=16 if state=="53" & inrange(puma10,11101,11104)
-	bigtab pumac state county, nocum nol
+	// convert PUMAC to county (only 2010 PUMAs)
+	if inrange(`year',2016,2021) {
+		do acs/pumac10.do
+		gen byte factor=.
+		replace factor=4 if pumac==1
+		replace factor=9 if pumac==2
+		replace factor=4 if pumac==3
+		replace factor=4 if pumac==5
+		replace factor=2 if pumac==6
+		replace factor=3 if pumac==8
+		replace factor=2 if pumac==12
+		replace factor=1 if factor==.
+		assert factor<.
+		expand factor, gen(flag)
+		bys serialno sporder: gen listme=_n // should top out at factorvalue.
+		tostring state, replace force
+		gen county=""
+		replace county="001" if pumac==1 & listme==1 // baker
+		replace county="059" if pumac==1 & listme==2 // umatilla
+		replace county="061" if pumac==1 & listme==3 // union
+		replace county="063" if pumac==1 & listme==4 // wallowa
+		replace county="013" if pumac==2 & listme==1 // crook
+		replace county="021" if pumac==2 & listme==2 // gilliam
+		replace county="023" if pumac==2 & listme==3 // grant
+		replace county="027" if pumac==2 & listme==4 // hood river
+		replace county="031" if pumac==2 & listme==5 // jefferson
+		replace county="049" if pumac==2 & listme==6 // morrow
+		replace county="055" if pumac==2 & listme==7 // sherman
+		replace county="065" if pumac==2 & listme==8 // wasco
+		replace county="069" if pumac==2 & listme==9 // wheeler
+		replace county="025" if pumac==3 & listme==1 // harney
+		replace county="035" if pumac==3 & listme==2 // klamath
+		replace county="037" if pumac==3 & listme==3 // lake
+		replace county="045" if pumac==3 & listme==4 // malheur
+		replace county="017" if pumac==4 // deschutes
+		replace county="007" if pumac==5 & listme==1 // clatsop
+		replace county="009" if pumac==5 & listme==2 // columbia
+		replace county="041" if pumac==5 & listme==3 // lincoln
+		replace county="057" if pumac==5 & listme==4 // tillamook
+		replace county="003" if pumac==6 & listme==1 // benton
+		replace county="043" if pumac==6 & listme==2 // linn
+		replace county="039" if pumac==7 // lane
+		replace county="011" if pumac==8 & listme==1 // coos
+		replace county="015" if pumac==8 & listme==2 // curry
+		replace county="033" if pumac==8 & listme==3 // josephine
+		replace county="029" if pumac==9 // jackson
+		replace county="019" if pumac==10 // douglas
+		replace county="047" if pumac==11 // marion
+		replace county="053" if pumac==12 & listme==1 // polk
+		replace county="071" if pumac==12 & listme==2 // yamhill
+		replace county="051" if pumac==13 // multnomah
+		replace county="005" if pumac==14 // clackamas
+		replace county="067" if pumac==15 // washington
+		replace county="011" if pumac==. & state=="53" & inrange(puma10,11101,11104)
+		replace pumac=16 if state=="53" & inrange(puma10,11101,11104)
+		assert county!=""
+		lab def pumac10_lbl 16 "CLARK-WA", add modify
+	}
+	// convert PUMAC to county (mixed 2010 and 2020 PUMAs)
+	if inrange(`year',2022,2025) {
+		gen byte factor=.
+		do acs/pumac10.do
+		replace pumac=16 if state==53 & inrange(puma10,11101,11104)
+		lab def pumac10_lbl 16 "CLARK-WA", add modify
+		ren pumac tmp10
+		do acs/pumac20.do
+		replace pumac=17 if state==53 & inlist(puma20,21101,21102,21103,21104)
+		lab def pumac20_lbl 17 "CLARK-WA", add modify
+		ren pumac pumac20
+		ren tmp10 pumac10
+		replace factor=4 if pumac10==1
+		replace factor=9 if pumac10==2
+		replace factor=4 if pumac10==3
+		replace factor=1 if pumac10==4
+		replace factor=4 if pumac10==5
+		replace factor=2 if pumac10==6
+		replace factor=1 if pumac10==7
+		replace factor=3 if pumac10==8
+		replace factor=1 if pumac10==9
+		replace factor=1 if pumac10==10
+		replace factor=1 if pumac10==11
+		replace factor=2 if pumac10==12
+		replace factor=1 if pumac10==13
+		replace factor=1 if pumac10==14
+		replace factor=1 if pumac10==15 
+		replace factor=1 if pumac10==16 // wa: clark
+		replace factor=4 if pumac20==1 
+		replace factor=7 if pumac20==2
+		replace factor=4 if pumac20==3
+		replace factor=3 if pumac20==4
+		replace factor=3 if pumac20==5
+		replace factor=2 if pumac20==6
+		replace factor=1 if pumac20==7
+		replace factor=3 if pumac20==8
+		replace factor=1 if pumac20==9
+		replace factor=1 if pumac20==10
+		replace factor=1 if pumac20==11
+		replace factor=2 if pumac20==12
+		replace factor=1 if pumac20==13
+		replace factor=1 if pumac20==14
+		replace factor=1 if pumac20==15
+		replace factor=1 if pumac20==16
+		replace factor=1 if pumac20==17 // wa: clark
+		assert factor<.
+		expand factor, gen(flag)
+		bys serialno sporder: gen listme=_n // should top out at factorvalue.
+		tostring state, replace force
+		gen county=""
+		replace county="001" if (pumac10==1 & listme==1) | (pumac20==1 & listme==1) // baker
+		replace county="059" if (pumac10==1 & listme==2) | (pumac20==1 & listme==2) // umatilla
+		replace county="061" if (pumac10==1 & listme==3) | (pumac20==1 & listme==3) // union
+		replace county="063" if (pumac10==1 & listme==4) | (pumac20==1 & listme==4) // wallowa
+		replace county="013" if (pumac10==2 & listme==1) | (pumac20==4 & listme==2) // crook
+		replace county="021" if (pumac10==2 & listme==2) | (pumac20==2 & listme==1) // gilliam
+		replace county="023" if (pumac10==2 & listme==3) | (pumac20==2 & listme==2) // grant
+		replace county="027" if (pumac10==2 & listme==4) | (pumac20==2 & listme==3) // hood river
+		replace county="031" if (pumac10==2 & listme==5) | (pumac20==4 & listme==3) // jefferson
+		replace county="049" if (pumac10==2 & listme==6) | (pumac20==2 & listme==4) // morrow
+		replace county="055" if (pumac10==2 & listme==7) | (pumac20==2 & listme==5) // sherman
+		replace county="065" if (pumac10==2 & listme==8) | (pumac20==2 & listme==6) // wasco
+		replace county="069" if (pumac10==2 & listme==9) | (pumac20==2 & listme==7) // wheeler
+		replace county="025" if (pumac10==3 & listme==1) | (pumac20==3 & listme==1) // harney
+		replace county="035" if (pumac10==3 & listme==2) | (pumac20==3 & listme==2) // klamath
+		replace county="037" if (pumac10==3 & listme==3) | (pumac20==3 & listme==3) // lake
+		replace county="045" if (pumac10==3 & listme==4) | (pumac20==3 & listme==4) // malheur
+		replace county="017" if (pumac10==4) | (pumac20==4 & listme==1) // deschutes
+		replace county="007" if (pumac10==5 & listme==1) | (pumac20==5 & listme==1) // clatsop
+		replace county="009" if (pumac10==5 & listme==2) | (pumac20==5 & listme==2) // columbia
+		replace county="041" if (pumac10==5 & listme==3) | (pumac20==12 & listme==2) // lincoln
+		replace county="057" if (pumac10==5 & listme==4) | (pumac20==5 & listme==3) // tillamook
+		replace county="003" if (pumac10==6 & listme==1) | (pumac20==6 & listme==1) // benton
+		replace county="043" if (pumac10==6 & listme==2) | (pumac20==6 & listme==2) // linn
+		replace county="039" if (pumac10==7) | (pumac20==7) // lane
+		replace county="011" if (pumac10==8 & listme==1) | (pumac20==8 & listme==1) // coos
+		replace county="015" if (pumac10==8 & listme==2) | (pumac20==8 & listme==2) // curry
+		replace county="033" if (pumac10==8 & listme==3) | (pumac20==8 & listme==3) // josephine
+		replace county="029" if (pumac10==9) | (pumac20==9) // jackson
+		replace county="019" if (pumac10==10) | (pumac20==10) // douglas
+		replace county="047" if (pumac10==11) | (pumac20==11) // marion
+		replace county="053" if (pumac10==12 & listme==1) | (pumac20==12 & listme==1) // polk
+		replace county="071" if (pumac10==12 & listme==2) | (pumac20==16) // yamhill
+		replace county="051" if (pumac10==13) | (pumac20==13) // multnomah
+		replace county="005" if (pumac10==14) | (pumac20==14) // clackamas
+		replace county="067" if (pumac10==15) | (pumac20==15) // washington
+		replace county="011" if (pumac10==16) | (pumac20==17) | state=="53" // clark/wa
+		assert county!=""
+	}
+	// check results
+	bigtab state county, nocum nol
 	assert county!="" & year!=. & state!=""
 	unique state county
 	assert `r(unique)'==37
@@ -288,4 +374,4 @@ prog def expandpums
 	drop listme factor
 	save "5ACS`y'_ORWA_RELDPRI.dta", replace
 end
-*expandpums 2020
+*expandpums 2022
