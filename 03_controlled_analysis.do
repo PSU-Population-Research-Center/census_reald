@@ -3,8 +3,8 @@
 ** author: sharygin@pdx.edu
 /* notes:
 	- prerequisites:
-		- controldata_YYYY.dta = control totals by county from ACS tables for year YYYY (from 02_prep_control.do)
-		- 5ACS`y'_ORWA_RELDPRI.dta = 5-year ACS pums for period ending YY (from 03_prep_pums.do)
+		- 5ACS`y'_ORWA_RELDPRI.dta = 5-year ACS pums for period ending YY (from 01_prep_pums.do)
+		- 02_langxwalk.dta = dataset of code correspondence between lang39, lang41, langfnl, lang12, lang5
 		- Census API key stored in "censuskey.txt"
 		- subdirectory "results" for saving tabulations
 		- subdirectory "temp" for storing control totals
@@ -20,8 +20,10 @@
 	- TBD: add error metric for tracking iterations in disability reweighting to aid decision on # of iterations
 	- TBD: consider adding 06-10 PUMS for small counties only to inflate representation of rare conditions (especially languages)
 	- TBD: roll up detailed state tabulations (age groups 0-14, 15-17, 18-19, 20(5)30, 30(10)60, 60+) into county broad ages (5-17, 18-64, 65+)
-changelog: ~ timestamp for deliverables from 2024-04-------
-	v13: updating language tables to comply with SOS needs; splitting re/d/l into separate dofiles.
+changelog:
+	~ timestamp for deliverables from 2024-05-28
+	v13: updating language tables to comply with SOS needs; split re/d/l into separate dofiles
+	~ timestamp for deliverables from 2024-04-24
 	v12: updated language tables to include split by lep*agecat for each language.
 	v11: completed sequential raking (1) by langc39-lep (2) by lang12-lep-agesex-langc42st.
 	v10: working language rake, but excluding langc39 rake for small counties
@@ -29,7 +31,8 @@ changelog: ~ timestamp for deliverables from 2024-04-------
 	v08: adding dummy exposure from older ACS PUMS instead of synthetic obs 
 	v07: adding empty persons to ensure successful language rake 
 	v06: converted blocks to functions and updated filenames/paths; added place for language analysis (WIP)
-	v05: fixed disability code ~ timestamp for deliverables from 2024-01-16
+	~ timestamp for deliverables from 2024-01-16
+	v05: fixed disability code 
 	v04: wip to add disability
 	v03: wip to add disbaility
 	v02: change to faster, consistent totals by county
@@ -73,42 +76,38 @@ foreach p in "survwgt" "censusapi" "hotdeckvar" {
 */
 
 * Notes:
-* The data source is the 5-year ACS PUMS and associated 100% tabulations. PUMS results have been adjusted for consistency with county level tabulations from the 100% ACS.
-* Therefore, totals may differ from data in published ACS tables or from ACS PUMS calculations with unadjusted person or household weights.
+* REALD approaches are under ongoing development and results may not match totals published elsewhere.
+* The data source is the 5-year ACS PUMS and associated 100% tabulations. PUMS results have been adjusted for consistency with county level tabulations from the 100% ACS. Totals may differ from data in published ACS tables or from ACS PUMS calculations with unadjusted person or household weights.
 * The reweighting process results in non-integer counts, and these have been left as is. They can be displayed as or rounded to whole counts (in which case, rounding errors will mean that totals may not sum exactly).
 * Language is assessed for the population age 5+ only; therefore, sums across languages will not sum to the total population.
-* Detailed language is implicitly treated as distributed proportionally to population of the aggregated language family between each county of a multi-county PUMA 
-* For example, two distinct languages in the PUMS that are part of the same 12-way classification and known at a PUMA level where the PUMA countains multiple counties will be proportionally divided between the counties according to the county's share of total speakers of the languages in the 12-way classification.
 * Disability status is assessed only for the civilian noninstitutionalized population (excluding the population in institutional group quarters such as skilled nursing facilities whose disability status is not surveyed); therefore, sums across disability status will not sum to total population.
-* REALD race/ethnicity is imputed using language, place of birth, and other person-level characteristics, and then adjusted for consistency at the county level by OMB race/ethnicity only. 
-* REALD subgroups for White, Asian, or Black are implicitly treated as distributed proportionally to population across each county of a multi-county PUMA. 
-* REALD approaches are under ongoing development and results may not match totals published elsewhere.
 
 // add subroutines to memory
-do 03a_raceeth_v13.do // add subroutines to memory
+do 03a_raceeth_v14.do // add subroutines to memory
 do 03b_disab_v12.do // add subroutines to memory
 do 03c_language_v14.do // add subroutines to memory
 
 // race-eth
-reControls 2019 // download control totals
-reFile 2019 // generate raked microdata
-chkTotal 2019 // compare totals
-tabSex 2019 // export results by age/sex
-tabReldRR 2019 // export results by omb rarest race
-tabReldPri 2019 // export totals by reald primary race
+reControls 2022 // download control totals
+reFile 2022 // generate raked microdata
+*chkTotal 2022 // compare totals
+tabSex 2022 // export results by age/sex
+tabReldRR 2022 // export results by omb rarest race
+tabReldPri 2022 // export totals by reald primary race
 
 // disability
-disabyControls 2019 // download control totals
-disabyFile 2019 // generate raked microdata
-tabdisdi 2019 // tables by any disbaility
-tabda4 2019 // tabulate by 4-way classification
-tabda7 2019 // tabulate by 7-way classification
-tabdaoic 2019 // tables by specific disabilities, AOIC
+disabyControls 2022 // download control totals
+disabyFile 2022 // generate raked microdata
+tabdisdi 2022 // tables by any disbaility
+tabda4 2022 // tabulate by 4-way classification
+tabda7 2022 // tabulate by 7-way classification
+tabdaoic 2022 // tables by specific disabilities, AOIC
 
 // languages
-langControls 2019 // download control totals
-langFile 2019 // generate raked microdata
-tablang 2019 // export county tables w/SE (broad age groups)
-tablangSt 2019 // export state table w/SE (detailed age groups)
+langControls 2022 // download control totals
+langFile 2022 // generate raked microdata
+donorLang 2022 // generate donor observation dataset 
+tablang 2022 // export county tables w/SE (broad age groups)
+tablangSt 2022 // export state table w/SE (detailed age groups)
 *sosTable 2019 // copy-paste into Excel
 *sosSplit 2019 // copy-paste into Excel

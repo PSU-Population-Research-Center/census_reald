@@ -1,3 +1,5 @@
+* v13: increased iterations; removed mata:st_matrix in favor of tab, matrow
+
 /*** part 2
  *                                                                                     
  *    _______                                           .---.                          
@@ -375,7 +377,7 @@ prog def tabdisdi
 				svy sdr: total one if agecat==`a' & disdi==`d', over(stcofips) 
 				mat table=r(table)
 				mat table=table'
-				mata: st_matrix("stcofips", range(1,37,1))
+				qui tab stcofips, matrow(stcofips)
 				mat sex=J(37,1,0)
 				mat disdi=J(37,1,`d')
 				mat agecat=J(37,1,`a')
@@ -385,10 +387,10 @@ prog def tabdisdi
 		}
 		drop _all
 		svmat master, names(col)
+		drop if stcofips==.
 		save results/results_disdi_`1'.dta, replace
 	}
 	** clean for excel export
-	drop if stcofips==.
 	collapse (sum) b, by(stcofips disdi agecat)
 	reshape wide b, i(stcofips agecat) j(disdi )
 	rename b* disdi*_
@@ -425,7 +427,7 @@ prog def tabda4
 					svy sdr: total one if agecat==`a' & da4cat==`d', over(stcofips) 
 					mat table=r(table)'
 				}
-				mata: st_matrix("stcofips", range(1,37,1))
+				qui tab stcofips, matrow(stcofips)
 				mat sex=J(37,1,0)
 				mat da4cat=J(37,1,`d')
 				mat agecat=J(37,1,`a')
@@ -435,10 +437,10 @@ prog def tabda4
 		}
 		drop _all
 		svmat master, names(col)
+		drop if stcofips==.
 		save results/results_da4cat_`1'.dta, replace
 	}
 	** clean for excel export
-	drop if stcofips==.
 	collapse (sum) b, by(stcofips da4cat agecat)
 	reshape wide b, i(stcofips agecat) j(da4cat )
 	rename b* da4cat*_
@@ -475,7 +477,7 @@ prog def tabda7
 					svy sdr: total one if agecat==`a' & da7compacsall==`d', over(stcofips) 
 					mat table=r(table)'
 				}
-				mata: st_matrix("stcofips", range(1,37,1))
+				qui tab stcofips, matrow(stcofips)
 				mat sex=J(37,1,0)
 				mat da7compacsall=J(37,1,`d')
 				mat agecat=J(37,1,`a')
@@ -485,10 +487,10 @@ prog def tabda7
 		}
 		drop _all
 		svmat master, names(col)
+		drop if stcofips==.
 		save results/results_da7compacsall_`1'.dta, replace
 	}
 	** clean for excel export
-	drop if stcofips==.
 	collapse (sum) b, by(stcofips da7compacsall agecat)
 	reshape wide b, i(stcofips agecat) j(da7compacsall )
 	rename b* da7compacsall*_
@@ -528,7 +530,7 @@ prog def tabdaoic
 						svy sdr: total one if agecat==`a' & `v'oicv2==`d', over(stcofips) 
 						mat table=r(table)'
 					}
-					mata: st_matrix("stcofips", range(1,37,1))
+					qui tab stcofips, matrow(stcofips)
 					mat sex=J(37,1,0)
 					mat `v'oicv2=J(37,1,`d')
 					mat agecat=J(37,1,`a')
@@ -539,22 +541,23 @@ prog def tabdaoic
 			drop one
 			drop _all
 			svmat master, names(col)
+			drop if stcofips==.
 			save results/results_`v'oicv2_`1'.dta, replace
 			restore
 		}
 	}
 	** clean for excel export
-	pause on
 	foreach v in "dear" "deye" "dphy" "drem" "ddrs" "dout" {
-		use if stcofips<. using results/results_`v'oicv2_`1'.dta, clear
+		use results/results_`v'oicv2_`1'.dta, clear
 		collapse (sum) b, by(stcofips `v'oicv2 agecat)
 		reshape wide b, i(stcofips agecat) j(`v'oicv2 )
 		rename b* `v'oicv2*_
 		reshape wide `v'oicv20_ `v'oicv21_ `v'oicv22_, i(stcofips) j(agecat) 
 		order *, seq
 		order stcofips
-		browse
-		pause
+		*browse
+		*pause on
+		*pause
 	}
 end
 *tabdaoic 2020

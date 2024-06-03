@@ -1,3 +1,7 @@
+* v14: output stcofips in rows instead of county 1--37; removed mata:st_matrix in favor of tab, matrow
+* v13: bugfixes
+* v12: fork out of controlled_analysis.do
+
 /*** part 1
  *                                                 __                                                                             _..._                               __                                               
  *                                                / /\                                                                         .-'_..._''.                           / /\                                              
@@ -200,6 +204,7 @@ prog def reFile
 	local y=substr("`year'",3,2)
 	// LOAD pums data from prior step and generate flags for control pops
 	use 5ACS`y'_ORWA_RELDPRI.dta, clear 
+	cap drop flag
 	gen stcofips=state+county
 	gen agec11=""
 	replace agec11="0004" if inrange(agep,0,4)
@@ -282,8 +287,8 @@ prog def reFile
 					assert `r(N)'==1
 					randomtag if agec11b=="`a'" & stcofips=="`l'" & sex=="`s'", count(1) gen(tag) // use this donor obs to impute missing chars besides race
 					expand 2 if tag==1, gen(flag)
-					sum asr_n if _merge==2 & stcofips=="`l'" & agec11b=="`a'" & sex=="`s'" & ombhisp=="`r'" // copy age-sex-eth total
-					replace asr_n=`r(mean)' if flag==1
+					sum ash_n if _merge==2 & stcofips=="`l'" & agec11b=="`a'" & sex=="`s'" & ombhisp=="`r'" // copy age-sex-eth total
+					replace ash_n=`r(mean)' if flag==1
 					replace ombhisp="`r'" if flag==1
 					drop flag tag
 					drop if _merge==2 & stcofips=="`l'" & agec11b=="`a'" & sex=="`s'" & ombhisp=="`r'" // drop merged obs, now that weight copied to donor obs
@@ -375,7 +380,7 @@ prog def tabSex
 				svy: total one if agecat==`a' & sex==`s', over(stcofips)
 				mat table=r(table)
 				mat table=table'
-				mata: st_matrix("stcofips", range(1,37,1))
+				qui tab stcofips, matrow(stcofips)
 				mat sex=J(37,1,`s')
 				mat agecat=J(37,1,`a')
 				mat result=stcofips,sex,agecat,table
@@ -417,7 +422,7 @@ prog def tabReldRR
 					svy sdr: total one if agecat==`a' & sex==`s' & ombrrn==`r', over(stcofips) 
 					mat table=r(table)
 					mat table=table'
-					mata: st_matrix("stcofips", range(1,37,1))
+					qui tab stcofips, matrow(stcofips)
 					mat sex=J(37,1,`s')
 					mat ombrrn=J(37,1,`r')
 					mat agecat=J(37,1,`a')
@@ -432,10 +437,10 @@ prog def tabReldRR
 		label values ombrr ombrr
 		decode ombrrn, gen(ombrr)
 		drop ombrrn
+		drop if stcofips==.
 		save results/results_agesex_ombrr_`1'.dta, replace
 	}
 	** clean for excel export
-	drop if stcofips==.
 	keep stcofips sex ombrr agecat b
 	reshape wide b, i(stcofips agecat ombrr) j(sex)
 	rename *1 *male
@@ -474,7 +479,7 @@ prog def tabReldPri
 					if _rc mat table=J(9,37,0)
 					else mat table=r(table)
 					mat table=table'
-					mata: st_matrix("stcofips", range(1,37,1))
+					qui tab stcofips, matrow(stcofips)
 					mat sex=J(37,1,`s')
 					mat reldprin=J(37,1,`r')
 					mat agecat=J(37,1,`a')
@@ -488,10 +493,10 @@ prog def tabReldPri
 		label values reldprin reldprin
 		decode reldprin, gen(reldpri)
 		drop reldprin
+		drop if stcofips==.
 		save results/results_agesex_reldpri_`1'.dta, replace
 	}
 	** clean for excel export
-	drop if stcofips==.
 	keep stcofips sex reldpri agecat b
 	reshape wide b, i(stcofips agecat reldpri) j(sex)
 	rename *1 *male
@@ -504,6 +509,6 @@ prog def tabReldPri
 	foreach l of local levels {
 		egen b`l'=rowtotal(bfemale`l'* bmale`l'*)
 	}
-	browse stcofips bAfrAm-bWhiteOth
+	*browse stcofips bAfrAm-bWhiteOth
 end
 *tabReldPri 2020
