@@ -1,7 +1,8 @@
-* v15: added code for special cases for multnomah and washington counties, per SOS language code 
-* v14: added statewide table for detailed age groups; improved SOS tables code; removed mata:st_matrix in favor of tab, matrow
-* v13: removed foreign birthplace controls; moved to below (language splits)
-* v13: added code for OR SOS tables by langfnl, and support for some 2022 geography/api changes
+* v16: converting sossplit to generate counts from shares
+* v15: added code for special cases for multnomah and washington counties, per SOS language code.
+* v14: added statewide table for detailed age groups; improved SOS tables code; removed mata:st_matrix in favor of tab, matrow.
+* v13: removed foreign birthplace controls; moved to below (language splits).
+* v13: added code for OR SOS tables by langfnl, and support for some 2022 geography/api changes.
 * TBD: 
 *	add race/eth OR ancestry/waob for more accurate county lang codes.
 *	address the elephant in the room (Somali)
@@ -581,7 +582,6 @@ end
 // attach merge/rake points in PUMS
 cap prog drop langFile
 prog def langFile
-	local 1=2022
 	local year=`1'
 	local y=substr("`year'",3,2)
 	** load PUMS
@@ -731,6 +731,7 @@ prog def langFile
 	tab stcofips agec3 if stfips=="41" [iw=pwt3] // check that totals agree ~ OR 4,013,618 age>=5 in 5ACS22 `ok'
 	tab stcofips if langfnl==11 & stfips=="41" [iw=pwt3] // check that totals agree ~ OR 355,412 spanish in 5ACS22 `ok'
 	destring stcofips, replace
+	compress
 	save 5ACS`y'_ORWA_RELDPRI_lang.dta, replace
 end
 *langFile 2022
@@ -740,7 +741,7 @@ cap prog drop tablang
 prog def tablang
 	local y=substr("`1'",3,2)
 	use 5ACS`y'_ORWA_RELDPRI_lang.dta, clear
-	** add language categories for use by oha: lang42 + english + ukrainian out of other slavic
+	** roll up language categories for use by oha
 	gen langtmp=langc42
 	replace langtmp="ukr" if langfnl==18 // make ukrainian distinct
 	encode langtmp, gen(langoha)
@@ -803,7 +804,7 @@ prog def tablang
 end
 *tablang 2021
 
-// state tabulation for langages (by agec11)
+// oha state tabulation for languages (by agec11)
 cap prog drop tablangSt
 prog def tablangSt
 	local y=substr("`1'",3,2)
@@ -911,15 +912,18 @@ prog define sosTable
 	lab def langfnl 50 "Myanma", modify
 	lab def langfnl 58 "Lao", modify
 	lab def langfnl 59 "Khmer", modify
+	lab def langfnl 61 "Indonesian", modify
 	lab def langfnl 63 "Tagalog", modify
 	lab def langfnl 22 "Serbo-Croatian", modify // Serbian/Croatian/Bosnian
 	lab def langfnl 97 "Siouan", modify // Dakota/Lakota/Nakota/Siouan
+	lab def langfnl 99 "Cherokee", modify 
+	lab def langfnl 100 "Algonquin", modify 
 	lab def langfnl 102 "Central/SA", modify // Other Central/South American
 	// imputation of AIAN languages to associated tribal areas in OR
-	replace langfnl=203 if langfnl==101 & inlist(stcofips,41059,41031,41065) // "UMATILLA","WASCO","JEFFERSON"
-	lab def langfnl 203 "Sahaptin", add modify
+	*replace langfnl=203 if langfnl==101 & inlist(stcofips,41059,41031,41065) // "UMATILLA","WASCO","JEFFERSON"
+	*lab def langfnl 203 "Sahaptin", add modify
 	// drop groups
-	drop if inlist(langfnl,36,37,62,66,73,82,87,88,93,102,103) // drop language groups ~ unrankable and unidentifiable ~ except AIAN
+	drop if inlist(langfnl,36,37,62,66,73,82,87,88,93,102,103) // drop broad language groups ~ unrankable and unidentifiable ~ except "Other AIAN"
 	// bin languages by N speakers 
 	for var "total_`year'" "lep_`year'": recode X (0/99.999=.) (100/299.999=1 "100-299") (300/499.999=2 "300-499") (500/.=3 "500+"), gen(X_bin)
 	// flag largest N for counties without 100+ lep
@@ -947,8 +951,8 @@ prog define sosTable
 		egen list=concat(lang*), punct("|")
 		drop langs*
 		pause on
-		*browse
-		*pause
+		browse
+		pause
 		restore
 	}
 	// new table 3 design: OR state + counties BINS non-English by 100s of speakers THEN LEP speakers
@@ -991,8 +995,8 @@ prog define sosTable
 		drop listme*
 		qui for var langs*: replace X="|" if X==""
 		drop if langs_100_299=="|"&langs_300_499=="|"&langs_500=="|"&stcofips>1
-		*browse
-		*pause
+		browse
+		pause
 		restore
 	}
 end
@@ -1041,15 +1045,24 @@ prog def sosSplit
 	tostring county, replace format(%03.0f)
 	gen stcofips=state+county
 	collapse (sum) fbbpld_*, by(stcofips)
-	gen Simplified=fbbpld_chn/(fbbpld_chn+fbbpld_hkg+fbbpld_twn)
-	sum Simplified if stcofips=="41."
-	*replace Simplified=`r(mean)' if Simplified==. // use state mean for zero pop areas
-	gen Traditional=1-Simplified
-	gen Farsi=(fbbpld_irn+fbbpld_taj)/(fbbpld_irn+fbbpld_taj+fbbpld_afg)
-	sum Farsi if stcofips=="41."
+	gen shrSimplified=fbbpld_chn/(fbbpld_chn+fbbpld_hkg+fbbpld_twn)
+	sum shrSimplified if stcofips=="41."
+	gen shrTraditional=1-shrSimplified
+	gen shrFarsi=(fbbpld_irn+fbbpld_taj)/(fbbpld_irn+fbbpld_taj+fbbpld_afg)
+	sum shrFarsi if stcofips=="41."
 	*replace Farsi=`r(mean)' if Farsi==. // use state mean for zero pop areas
-	gen Dari=1-Farsi
+	gen shrDari=1-shrFarsi
 	save sos/lang_split_`year'.dta, replace
-	*browse stcofips Dari Farsi Traditional Simplified
+	pause on
+	browse stcofips shrDari shrFarsi shrTraditional shrSimplified
+	pause
+	// now, merge N speakers and tabulate (Farsi share then Dari remainder; Simplified share then Trad remainder)
+	use stcofips langfnl pw* if inlist(langfnl,25,48) using 5ACS`y'_ORWA_RELDPRI_lang.dta, clear
+	tostring stcofips, replace
+	gen byte one=1
+	svy sdr: total one if langfnl==25, over(stcofips) 
+	svy sdr: total one if langfnl==25 & substr(strofreal(stcofips),1,2)=="41"
+	svy sdr: total one if langfnl==48, over(stcofips) 
+	svy sdr: total one if langfnl==48 & substr(strofreal(stcofips),1,2)=="41"
 end
 *sosSplit 2019
