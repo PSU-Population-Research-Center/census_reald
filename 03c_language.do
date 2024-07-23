@@ -1,3 +1,4 @@
+* v15: added code for special cases for multnomah and washington counties, per SOS language code 
 * v14: added statewide table for detailed age groups; improved SOS tables code; removed mata:st_matrix in favor of tab, matrow
 * v13: removed foreign birthplace controls; moved to below (language splits)
 * v13: added code for OR SOS tables by langfnl, and support for some 2022 geography/api changes
@@ -31,12 +32,19 @@
 // data prep
 // -- attach agec3, agec5, agec11, lep, langc5, langc32, langc42, langfnl (langs for report)
 // -- rectangularize to avoid zeros
+// SOS special cases analysis
+// -- 2016+ b16001 at the county level for wash, mult aggregated 
+// -- 2016+ pums at the county level for wash, mult 
+// -- associate b16001 langauges with pums (langxwalk)
+// -- recalculate implied pums language speakers (langfnl) according to b16001 totals
+// -- export controls for raking sequence
 // raking sequence 
 // -- rake to agec11/sex
 // -- rake to pobp/ancestry (county level ~ help with e.g. NHPI)
 // -- rake to 2015 version lang32 (for counties that were part of a multi-county PUMA)
 // -- rake to langc5/agec3/lep 
 // -- rake to agec11/sex 
+// -- rake to langfnl from SOS analysis (mult, wash only)
 // -- simultaneous rake to lang12 (all counties) + lang42 (state)
 // summary
 // -- special adjustments/overrides, e.g. Spanish>0 for Gilliam in 2021 etc
@@ -363,6 +371,168 @@ prog def langControls
 end
 *langControls 2021
 
+cap prog drop topdown42
+prog def topdown42
+	** title: topdown_lang42
+	** purpose: allocate B16001 tables (synthetic 5-years for multnomah and washington counties)
+	**	to increase representation of rare languages (rather than, e.g., adding more old PUMS before raking)
+	** author: sharygin@pdx.edu
+	** v01: first version (section 1--6)
+	** v02: updated to be consistent with 5ACS22 C16001 table (section 7+)
+	** 		added routines for past years <2022
+	** v03: converted to a program
+	// 
+	// 1. download b16001 data for counties (2016+)
+	forvalues y=2016/`1' {
+		censusapi, url("https://api.census.gov/data/`y'/acs/acs1?get=group(B16001)&for=state:41")
+		cap destring b*, replace ignore("BNnull")
+		qui for var b*: replace X=. if X<0
+		gen int year=`y'
+		if `y'>2016 append using SOS/td_lang42.dta
+		save SOS/td_lang42.dta, replace
+		censusapi, url("https://api.census.gov/data/`y'/acs/acs1?get=group(B16001)&for=county:051&in=state:41")
+		cap destring b*, replace ignore("BNnull")
+		qui for var b*: replace X=. if X<0
+		cap confirm var geo_id
+		if !_rc {
+			gen int year=`y'
+			append using SOS/td_lang42.dta
+			save SOS/td_lang42.dta, replace
+		}
+		censusapi, url("https://api.census.gov/data/`y'/acs/acs1?get=group(B16001)&for=county:067&in=state:41")
+		cap destring b*, replace ignore("BNnull")
+		qui for var b*: replace X=. if X<0
+		cap confirm var geo_id
+		if !_rc {
+			gen int year=`y'
+			append using SOS/td_lang42.dta
+			save SOS/td_lang42.dta, replace
+		}
+	}
+	dropmiss
+	drop if b16001_001e==. // has table, but all null.
+	foreach l in ///
+		"3 spa" "6 fre" "9 hai" "12 ita" "15 por" "18 ger" "21 ywg" "24 grk" "27 rus" "30 pol" ///
+		"33 sco" "36 osl" "39 arm" "42 per" "45 guj" "48 hin" "51 urd" "54 pan" "57 ben" "60 oin" ///
+		"63 oie" "66 tel" "69 tam" "72 mal" "75 chn" "78 jap" "81 kor" "84 hmo" "87 vie" "90 khm" ///
+		"93 tlk" "96 oas" "99 tgl" "102 opi" "105 ara" "108 heb" "111 afa" "114 waf" "117 cea" "120 nav" ///
+		"123 ona" "126 oth" {
+			tokenize `l'
+			local v=`1'
+			local w=`1'+1
+			local x=`1'+2
+			local v: di %03.0f `v'
+			local w: di %03.0f `w'
+			local x: di %03.0f `x'
+			ren b16001_`v'e n`2'0
+			ren b16001_`x'e n`2'1
+			drop b16001_`v'm b16001_`w'* b16001_`x'm
+		}
+	gen stcofips=substr(geo_id,10,.)
+	drop b16001* geo_id name state county
+	reshape long n@0 n@1, i(stcofips year) j(langc42) string
+	reshape long n@, i(stcofips year langc42) j(lep)
+	save SOS/td_lang42.dta, replace
+	//
+	// 2. download pums language data by lep for counties (2016-2022 = entire window of new codes)
+	touch SOS/td_pums.dta, replace
+	forvalues y=2016/`1' {
+		if `y'!=2020 {
+			if inrange(`y',2016,2021) {
+				censusapi, url("https://api.census.gov/data/`y'/acs/acs1/pums?get=ST,AGEP,SEX,LANX,ENG,LANP,PWGTP&for=public%20use%20microdata%20area:01301,01302,01303,01305,01314,01316&in=state:41&key=$ckey") // multco 2010 pumas
+				assert st<. // ensure it worked
+				cap drop publicusemicroda
+				cap drop state
+				destring lanp, replace ignore("N")
+				gen int year=`y'
+				gen stcofips="41051"
+				append using SOS/td_pums.dta
+				save SOS/td_pums.dta, replace 
+				if inrange(`y',2016,2021) censusapi, url("https://api.census.gov/data/`y'/acs/acs1/pums?get=ST,AGEP,SEX,LANX,ENG,LANP,PWGTP&for=public%20use%20microdata%20area:01320,01321,01322,01323,01324&in=state:41&key=$ckey") // washco 2010 pumas
+				assert st<. // ensure it worked
+				cap drop publicusemicroda
+				cap drop state
+				destring lanp, replace ignore("N")
+				gen int year=`y'
+				gen stcofips="41067"
+				append using SOS/td_pums.dta
+				save SOS/td_pums.dta, replace 
+			}
+			if inrange(`y',2022,2031) {
+				censusapi, url("https://api.census.gov/data/`y'/acs/acs1/pums?get=ST,AGEP,SEX,LANX,ENG,LANP,PWGTP&for=public%20use%20microdata%20area:05101,05102,05103,05105,05114,05116&in=state:41") // multco 2020 pumas
+				assert st<. // ensure it worked
+				cap drop publicusemicroda
+				cap drop state
+				destring lanp, replace ignore("N")
+				gen int year=`y'
+				gen stcofips="41051"
+				append using SOS/td_pums.dta
+				save SOS/td_pums.dta, replace 
+				censusapi, url("https://api.census.gov/data/`y'/acs/acs1/pums?get=ST,AGEP,SEX,LANX,ENG,LANP,PWGTP&for=public%20use%20microdata%20area:06720,06721,06722,06723,06724&in=state:41") // washco 2020 pumas
+				assert st<. // ensure it worked
+				cap drop publicusemicroda
+				cap drop state
+				destring lanp, replace ignore("N")
+				gen int year=`y'
+				gen stcofips="41067"
+				append using SOS/td_pums.dta
+				save SOS/td_pums.dta, replace 
+			}
+		}
+	}
+	//
+	// 3. associate pums languages with b16001 languages (lang42)
+	** each share of langfnl that is a lang42
+	use if lanx==1 & year<=`1' using SOS/td_pums.dta, clear // keep only age 5+ non-English 
+	destring lanp, replace ignore("N")
+	keep if inrange(lanp,1000,9999) // keep persons with a language other than english
+	gen lep=.
+	replace lep=0 if eng==1 | lanx==2
+	replace lep=1 if inlist(eng,2,3,4)
+	assert lep<. if agep>=5 
+	*gsort stcofips langfnl lep -year
+	*by stcofips langfnl lep : gen listme=_n
+	*keep if listme<=5 // keep last 5 years' data
+	ren lanp lanp16
+	merge m:1 lanp16 using 02_langxwalk.dta, assert(2 3) keep(1 3) nogen keepus(langfnl langc42)
+	collapse (sum) perwt=pwgtp, by(stcofips lep langfnl langc42)
+	** share of each lang42 attributable to each pums language by LEP, averaged over last 5 years starting in 2016 up to current year.
+	egen total=sum(perwt), by(stcofips langc42 lep)
+	gen shr=perwt/total
+	** now, reshape wide so can merge with the lang42 table.
+	keep shr langfnl langc42 lep stcofips
+	reshape wide shr, i(stcofips lep langc42) j(langfnl)
+	for num 1/103: cap gen shrX=.
+	egen chk=rowtotal(shr*)
+	assert inrange(chk,.99,1.01) // fails w/o overrides
+	drop chk
+	save SOS/td_pums_`1'.dta, replace 
+	//
+	// 4. calculate implied speakers per pums language from the lang42 table
+	** load lang42 table
+	use if stcofips!="41" & year<=`1' using SOS/td_lang42.dta, clear // all years combined up to the present
+	collapse (mean) n, by(stcofips langc42 lep) // average
+	gen int year=`1' 
+	merge 1:1 stcofips langc42 lep using SOS/td_pums_`1'.dta, keep(1 3) assert(1 3) keepus(shr*) nogen // _m==1 for statewide
+	rm SOS/td_pums_`1'.dta // no longer needed
+	for num 1/103: gen nX=n*shrX \\ drop shrX
+	drop n
+	reshape long n@, i(stcofips year lep langc42) j(langfnl) 
+	collapse (sum) n, by(stcofips year lep langfnl)
+	replace n=round(n)
+	merge m:m langfnl using 02_langxwalk.dta, keepus(lf_label) keep(1 3) nogen
+	** export table
+	gsort stcofips lep -n
+	by stcofips lep: gen rank=_n
+	local y=substr("`1'",3,2)
+	duplicates drop
+	subsave stcofips lep langfnl n using SOS/sos_lang42_topdown_5acs`y'.dta, replace
+	** incorporate into OHA analysis
+	** merge controls and add rake step for counts by langfnl for multnomah and washington counties
+	** then final rake all counties to 5ACS22 C16001 + state to 5ACS22 B16001 as before
+end
+* topdown42 2021
+
 // generate donor samples from previous ACS PUMS 
 ** 	used only to get traits (age/sex/lep) for language speakers not in PUMS, but in ACS tables
 ** 	pulls single-year PUMS from up to 5-years ago (starting in 2016, so that langcodes + pumas match)
@@ -411,6 +581,7 @@ end
 // attach merge/rake points in PUMS
 cap prog drop langFile
 prog def langFile
+	local 1=2022
 	local year=`1'
 	local y=substr("`year'",3,2)
 	** load PUMS
@@ -446,13 +617,27 @@ prog def langFile
 	bys langfnl: hotdeckvar lanp16 lanx agep sex, suffix("_m2")
 	drop if add==1 | add2==1
 	for var lanp16 lanx agep sex: replace X=X_m1 if X==. & X_m1<. \\ replace X=X_m2 if X==. & X_m2<.
-	drop add *_m1 *_m2
+	drop add* *_m1 *_m2
 	assert sex<. & agep<. & lanp<. & lanx<. & langfnl<. & lep<.
 	keep if sex<. & agep<. & lanp<. & lanx<. & langfnl<. & lep<.
 	gen pwgtp=1e-3 
 	save `tmp2'
 	restore
 	append using `tmp2'
+	** (3) merge multnomah, washington control totals by langc42/lep; (4) impute traits for lang/lep combinations missing in pums but present in the synthetic data
+	merge m:1 stcofips langfnl lep using SOS/sos_lang42_topdown_5acs`y'.dta, keepus(n) // county synthetic langfnl (from lang42)
+	drop if _merge==2 & n==0 // drop new languages if zero speakers
+	set seed 13371701
+	bys langfnl lep: hotdeckvar lanp16 lanx agep sex if langfnl!=., suffix("_m1")
+	bys langfnl: hotdeckvar lanp16 lanx agep sex if langfnl!=., suffix("_m2")
+	for var lanp16 lanx agep sex: replace X=X_m1 if _merge==2 & X==. & X_m1<. \\ replace X=X_m2 if _merge==2 & X==. & X_m2<.
+	replace year=`year' if _merge==2
+	replace pwgtp=n if _merge==2
+	replace stfips="41" if _merge==2
+	drop *_m1 *_m2 _merge
+	assert sex<. & agep<. 
+	assert lanp<. & lanx<. & langfnl<. & lep<. if eng<.
+	ren n lcfnlco_n // control 
 	** summarized language categories
 	merge m:m langfnl using 02_langxwalk.dta, keep(1 3) nogen keepus(lf_label langc39 langc42 langc12 langc5)
 	tab1 langc39 langc42 langc12 langc5 if lanp16<., mis // ensure no missings for non-english languages
@@ -494,13 +679,13 @@ prog def langFile
 	** merge control totals by 2015 langc39 
 	assert stcofips!="" & year<. & (lep<.|agec11=="0004") & (langc39!=""|agec11=="0004")
 	merge m:1 stcofips langc39 lep using temp/control_langc39_tmp.dta, assert(1 3) keepus(lc39_n) // old county lang39
-	ren lc39_n lc39_n_co
+	ren lc39_n lc39co_n
 	assert _merge==3 if agec11!="0004"
 	drop _merge
 	** merge latest county totals by langc12/lep
 	assert stcofips!="" & year<. & (lep<.|agec11=="0004") & (langc12!=""|agec11=="0004")
 	merge m:1 stcofips year langc12 lep using temp/control_langc12_tmp.dta, assert(1 3) keepus(lc12_n) // latest county lang12
-	ren lc12_n lc12_n_co
+	ren lc12_n lc12co_n
 	assert _merge==3 if agec11!="0004"
 	drop _merge
 	** merge OR state totals by langc42/lep
@@ -516,32 +701,39 @@ prog def langFile
 	*set seed 1337170
 	*survwgt poststratify pwgtp, by(stcofips agec11 sex) totvar(as_n) gen(pwt0) 
 	// PRE-RAKE: small counties to their 2015 lang39 (last detailed county tables)
-	gen touse=!inlist(stcofips,"41029","41019","41039","41017","41047","41051","41005","41067","53011") // single-county PUMAs
-	set seed 1337170
-	survwgt poststratify pwgtp if touse==1 & agep>=5, by(stcofips langc39 lep) totvar(lc39_n) gen(pwt1) // control to 2015 detailed languages (for multi-county PUMAs)
+	gen touse=!inlist(stcofips,"41029","41019","41039","41017","41047","41051","41005","41067","53011") // exclude single-county PUMAs
+	set seed 13371701
+	survwgt poststratify pwgtp if touse==1 & agep>=5, by(stcofips langc39 lep) totvar(lc39co_n) gen(pwt1) // control to 2015 detailed languages (for multi-county PUMAs)
 	replace pwt1=pwgtp if touse==0 | agep<5 // use original PUMS weights for single-county PUMAs
 	replace pwt1=1e-3 if pwt1==0 | pwt1==. // ensure non-zero probability of selection in future rake
 	// PRE-RAKE: small counties to their pobp to improve detailed language distribution
 	*tbd; will require more fillin and pre-seed by donor obs
+	// PRE-RAKE: multnomah and washington to their synthetic B16001 5-year files ("SOS" subroutines)
+	replace touse=inlist(stcofips,"41051","41067") // apply to multnomah and wash only (w/synthetic b16001 5-year files)
+	set seed 13371701
+	survwgt poststratify pwgtp if touse==1 & agep>=5, by(stcofips langfnl lep) totvar(lcfnlco_n) gen(pwt2) // control to 2016+ detailed languages (for wash/mult counties)
+	replace pwt2=pwt1 if touse==0 | agep<5 
+	replace pwt2=1e-3 if pwt2==0 | pwt2==. // ensure non-zero probability of selection in future rake
 	// RAKE. OR counties to state lang42 + county lang12 + county age/sex
 	egen id1=group(stfips langc42 lep)
 	egen id2=group(stcofips langc12 lep)
 	egen id3=group(stcofips agec11 sex)
 	set seed 13371701
-	survwgt rake pwt1 if stfips=="41" & agep>=5, by(id1 id2 id3) totvars(lc42st_n lc12_n as_n) gen(pwt3) maxrep(255)
+	survwgt rake pwt2 if stfips=="41" & agep>=5, by(id1 id2 id3) totvars(lc42st_n lc12co_n as_n) gen(pwt3) maxrep(255)
 	*survwgt rake pwt1 if stfips=="41" & agep>=5, by(id1 id2) totvars(lc42st_n lc12_n) gen(pwt3) maxrep(255)
 	// RAKE. WA counties to county lang12 + county age/sex
 	set seed 13371701
-	survwgt rake pwt1 if stfips=="53" & agep>=5, by(id2 id3) totvars(lc12_n as_n) gen(pwt2) maxrep(255)
+	survwgt rake pwgtp if stfips=="53" & agep>=5, by(id2 id3) totvars(lc12co_n as_n) gen(pwt3b) maxrep(255)
 	*survwgt rake pwt1 if stfips=="53" & agep>=5, by(id2) totvars(lc12_n) gen(pwt2) maxrep(255)
-	replace pwt3=pwt2 if stfips=="53"
+	replace pwt3=pwt3b if stfips=="53"
 	// mark final weights and check table and save
 	svyset [pw=pwt3], sdr(pwgtp1-pwgtp80) vce(sdr) mse
-	tab stcofips agec3 if stfips=="41" [iw=pwt3] // check that totals agree ~ OR 3,948,032 age>=5
+	tab stcofips agec3 if stfips=="41" [iw=pwt3] // check that totals agree ~ OR 4,013,618 age>=5 in 5ACS22 `ok'
+	tab stcofips if langfnl==11 & stfips=="41" [iw=pwt3] // check that totals agree ~ OR 355,412 spanish in 5ACS22 `ok'
 	destring stcofips, replace
 	save 5ACS`y'_ORWA_RELDPRI_lang.dta, replace
 end
-*langFile 2021
+*langFile 2022
 
 // tables by langoha (subset of langfnl, for languages in any county's top10 total or by lep) 
 cap prog drop tablang
