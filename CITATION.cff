@@ -1,0 +1,19 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: 'ACS Data with Oregon REALD Categories '
+message: >-
+  If you use this dataset, please cite it using the metadata
+  from this file.
+type: dataset
+authors:
+  - given-names: Ethan
+    family-names: Sharygin
+    affiliation: Portland State University
+    orcid: 'https://orcid.org/0000-0003-2648-5416'
+repository-code: >-
+  https://github.com/PSU-Population-Research-Center/census_reald
+abstract: >-
+  Code and output datasets for American Community Survey
+  microdata in Oregon REALD (2020 ed) categories.
