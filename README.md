@@ -1,40 +1,40 @@
 # Downloads
 Downloads are currently available as Stata datasets only, where the file year refers to the final year of the 5-year ACS data release. Each dataset contains fields identifying the geography (stcofips, the state and or county FIPS codes), the subpopulation for which the estimates are generated, and the estimate (b) and standard error of the estimate (se).
 
-Population by age/sex: [2019](results/results_agesex_2019.dta) [2020](results/results_agesex_2020.dta) [2021](results/results_agesex_2021.dta) [2022](results/results_agesex_2022.dta)<br />
-Population by age/sex and OMB race (ombrr): [2019](results/results_agesex_ombrr_2019.dta) [2020](results/results_agesex_ombrr_2020.dta) [2021](results/results_agesex_ombrr_2021.dta) [2022](results/results_agesex_ombrr_2022.dta)<br />
-Population by age/sex and REALD primary race (reldpri): [2019](results/results_agesex_reldpri_2019.dta) [2020](results/results_agesex_reldpri_2020.dta) [2021](results/results_agesex_reldpri_2021.dta) [2022](results/results_agesex_reldpri_2022.dta)<br />
-Population by Disability (disdi): [2019](results/results_disdi_2019.dta) [2020](results/results_disdi_2020.dta) [2021](results/results_disdi_2021.dta) [2022](results/results_disdi_2022.dta)<br />
-Population by Disability, combined (da4): [2019](results/results_da4cat_2019.dta) [2020](results/results_da4cat_2020.dta) [2021](results/results_da4cat_2021.dta) [2022](results/results_da4cat_2022.dta)<br />
-Population by Disability, detailed (da7): [2019](results/results_da7compacsall_2019.dta) [2020](results/results_da7compacsall_2020.dta) [2021](results/results_da7compacsall_2021.dta) [2022](results/results_da7compacsall_2022.dta)<br />
-Population by Disability, sight (eye): [2019](results/results_deyeoicv2_2019.dta) [2020](results/results_deyeoicv2_2020.dta) [2021](results/results_deyeoicv2_2021.dta) [2022](results/results_deyeoicv2_2022.dta)<br />
-Population by Disability, hearing (ear): [2019](results/results_dearoicv2_2019.dta) [2020](results/results_dearoicv2_2020.dta) [2021](results/results_dearoicv2_2021.dta) [2022](results/results_dearoicv2_2022.dta)<br />
-Population by Disability, self-care (drs): [2019](results/results_ddrsoicv2_2019.dta) [2020](results/results_ddrsoicv2_2020.dta) [2021](results/results_ddrsoicv2_2021.dta) [2022](results/results_ddrsoicv2_2022.dta)<br />
-Population by Disability, ambulatory (phy): [2019](results/results_dphyoicv2_2019.dta) [2020](results/results_dphyoicv2_2020.dta) [2021](results/results_dphyoicv2_2021.dta) [2022](results/results_dphyoicv2_2022.dta)<br />
-Population by Disability, cognitive (rem): [2019](results/results_dremoicv2_2019.dta) [2020](results/results_dremoicv2_2020.dta) [2021](results/results_dremoicv2_2021.dta) [2022](results/results_dremoicv2_2022.dta)<br />
-Population by Disability, independent living (out): [2019](results/results_doutoicv2_2019.dta) [2020](results/results_doutoicv2_2020.dta) [2021](results/results_doutoicv2_2021.dta) [2022](results/results_doutoicv2_2022.dta)<br />
-Population by LEP and Language Spoken at Home (counties): [2019](results/results_lang_2019.dta) [2020](results/results_lang_2020.dta) [2021](results/results_lang_2021.dta) [2022](results/results_lang_2022.dta)<br />
-Population by LEP and Language Spoken at Home (state; additional age detail): [2019](results/results_langst_2019.dta) [2020](results/results_langst_2020.dta) [2021](results/results_langst_2021.dta) [2022](results/results_langst_2022.dta)<br />
+Population by age/sex: [2019](results/results_agesex_2019.dta) [2020](results/results_agesex_2020.dta) [2021](results/results_agesex_2021.dta) [2022](results/results_agesex_2022.dta) [2023](results/results_agesex_2023.dta)<br />
+Population by age/sex and OMB race (ombrr): [2019](results/results_agesex_ombrr_2019.dta) [2020](results/results_agesex_ombrr_2020.dta) [2021](results/results_agesex_ombrr_2021.dta) [2022](results/results_agesex_ombrr_2022.dta) [2023](results/results_agesex_ombrr_2023.dta)<br />
+Population by age/sex and REALD primary race (reldpri): [2019](results/results_agesex_reldpri_2019.dta) [2020](results/results_agesex_reldpri_2020.dta) [2021](results/results_agesex_reldpri_2021.dta) [2022](results/results_agesex_reldpri_2022.dta) [2023](results/results_agesex_reldpri_2023.dta)<br />
+Population by Disability (disdi): [2019](results/results_disdi_2019.dta) [2020](results/results_disdi_2020.dta) [2021](results/results_disdi_2021.dta) [2022](results/results_disdi_2022.dta) [2023](results/results_disdi_2023.dta)<br />
+Population by Disability, combined (da4): [2019](results/results_da4cat_2019.dta) [2020](results/results_da4cat_2020.dta) [2021](results/results_da4cat_2021.dta) [2022](results/results_da4cat_2022.dta) [2023](results/results_da4cat_2023.dta)<br />
+Population by Disability, detailed (da7): [2019](results/results_da7compacsall_2019.dta) [2020](results/results_da7compacsall_2020.dta) [2021](results/results_da7compacsall_2021.dta) [2022](results/results_da7compacsall_2022.dta) [2023](results/results_da7compacsall_2023.dta)<br />
+Population by Disability, sight (eye): [2019](results/results_deyeoicv2_2019.dta) [2020](results/results_deyeoicv2_2020.dta) [2021](results/results_deyeoicv2_2021.dta) [2022](results/results_deyeoicv2_2022.dta) [2023](results/results_deyeoicv2_2023.dta)<br />
+Population by Disability, hearing (ear): [2019](results/results_dearoicv2_2019.dta) [2020](results/results_dearoicv2_2020.dta) [2021](results/results_dearoicv2_2021.dta) [2022](results/results_dearoicv2_2022.dta) [2023](results/results_dearoicv2_2023.dta)<br />
+Population by Disability, self-care (drs): [2019](results/results_ddrsoicv2_2019.dta) [2020](results/results_ddrsoicv2_2020.dta) [2021](results/results_ddrsoicv2_2021.dta) [2022](results/results_ddrsoicv2_2022.dta) [2023](results/results_ddrsoicv2_2023.dta)<br />
+Population by Disability, ambulatory (phy): [2019](results/results_dphyoicv2_2019.dta) [2020](results/results_dphyoicv2_2020.dta) [2021](results/results_dphyoicv2_2021.dta) [2022](results/results_dphyoicv2_2022.dta) [2023](results/results_dphyoicv2_2023.dta)<br />
+Population by Disability, cognitive (rem): [2019](results/results_dremoicv2_2019.dta) [2020](results/results_dremoicv2_2020.dta) [2021](results/results_dremoicv2_2021.dta) [2022](results/results_dremoicv2_2022.dta) [2023](results/results_dremoicv2_2023.dta)<br />
+Population by Disability, independent living (out): [2019](results/results_doutoicv2_2019.dta) [2020](results/results_doutoicv2_2020.dta) [2021](results/results_doutoicv2_2021.dta) [2022](results/results_doutoicv2_2022.dta) [2023](results/results_doutoicv2_2023.dta)<br />
+Population by LEP and Language Spoken at Home (counties): [2019](results/results_lang_2019.dta) [2020](results/results_lang_2020.dta) [2021](results/results_lang_2021.dta) [2022](results/results_lang_2022.dta) [2023](results/results_lang_2023.dta)<br />
+Population by LEP and Language Spoken at Home (state; additional age detail): [2019](results/results_langst_2019.dta) [2020](results/results_langst_2020.dta) [2021](results/results_langst_2021.dta) [2022](results/results_langst_2022.dta) [2023](results/results_langst_2023.dta)<br />
 
 # Data and Methods
-The ACS is a nationally representative sample of approximately 2% of the US resident population each year. Results of the ACS data are published as tables, aggregated into a variety of summary file releases such as subject tables, demographic profiles, detailed tables, and others. The ACS tables do not contain sufficient detail to count the population by REALD characteristics. Therefore, the starting estimates for the population by REALD characteristics are estimated from the ACS PUMS, a microdata sample of individual ACS responses. 
+The ACS is a nationally representative sample of approximately 2% of the US resident population each year. Results of the ACS data are published as tables, aggregated into a variety of summary file releases such as subject tables, demographic profiles, detailed tables, and others. The ACS tables do not contain sufficient detail to count the population by [Oregon REALD](https://www.oregon.gov/oha/EI/Pages/REALD.aspx) characteristics. Therefore, the starting estimates for the population by REALD characteristics are estimated from the ACS PUMS, a microdata sample of individual ACS responses. 
 
 The published tables differ from the PUMS in several respects: they are calculated from the 100% ACS sample (rather than the portion of the sample included in the PUMS), which provides greater statistical confidence. They are also available for many geographical levels including individual census tracts and counties (rather than the PUMA geographies which are the only level available for the PUMS). The ACS PUMS contains approximately 50% of unit-level response data from the ACS. ACS releases are currently published as single-year samples, weighted to the mid-year population, or in five-year aggregated samples, combining 5 cumulative years of ACS response data, and weighted to the mid-year population of the third year of the sample (as estimated in the fifth year of the sample). In order to construct a more statistically reliable and consistent sample, data from the five-year PUMS samples are used for all areas. The data also contain replicate weights for persons and households for evaluating statistical uncertainty.
 
-The REALD & SOGI unit of OHA developed coding heuristics which use the following ACS PUMS data fields in order to classify persons according to race, ethnicity, language, and disability status in a manner consistent with the REALD definitions:
+The REALD & SOGI unit of OHA developed coding heuristics which use the following ACS PUMS data fields in order to classify persons according to race, ethnicity, language, and disability status in a manner consistent with the REALD (pre-2024) definitions:
 
 |     | **ACS PUMS variables** |     |     |     |     |
 | --- | --- | --- | --- | --- | --- |
 | ST  | State (FIPS code) | RACAIAN | Am. Ind. or AK Native race | LANP | Language spoken at home |
 | PUMA | PUMA code (2010 or 2020 PUMAs) | RACASN | Asian race | ENG | Ability to speak English |
-| PWGT\* | Person weight and replicate weights | RACBLK | Black or African American race | DIS | Recoded disability (Y/N) |
+| PWGT | Person weight and replicate weights | RACBLK | Black or African American race | DIS | Recoded disability (Y/N) |
 | SEX | Binary sex (Male/Female) | RACNH | Native Hawaiian race | DOUT | Independent living difficulty |
 | AGEP | Age in years (mean-corrected topcoding 90+) | RACPI | Pacific Islander race | DPHY | Ambulatory difficulty |
 | POBP | State or country of birth | RACSOR | Some other race | DREM | Cognitive difficulty |
 | MIGSP | Movers during past year: state or country of origin | RACWHT | White race | DEYE | Vision difficulty |
 | RELSHIPP | Relation to respondent | RACNUM | Number of races selected | DEAR | Hearing difficulty |
 | ANC1P | Ancestry (first response) | RAC1P | Recoded detailed race code (9 values) | DDRS | Self-care difficulty |
-| ANC2P | Ancestry (second response) | RAC2P | Recoded detailed race code (68 values) | HINS\* | Health insurance (multiple codes) |
+| ANC2P | Ancestry (second response) | RAC2P | Recoded detailed race code (68 values) | HINS | Health insurance (multiple codes) |
 | HISP | Hispanic ethnicity (multiple codes) | RAC3P | Recoded detailed race code (100 values) | .   | .   |
 
 In order to protect respondent privacy and prevent reidentification of households, the ACS PUMS employs several disclosure avoidance strategies, including aggregation of responses to geographies that represent 100,000 persons or more as of the last decennial Census. These geographies, called PUMAs, are made up of contiguous census tracts, and are updated after each decennial census. Because of the 100,000 persons minimum threshold, PUMAs may be larger or smaller than counties, and may contain parts of counties when a county contains more than one tract. For example, a consistent grouping which delineates whole counties in Oregon (plus Clark County, WA) only includes 16 geographical units (PUMA-Counties or PUMAC), ranging from 1 to 9 counties in each area:
@@ -119,10 +119,10 @@ The ACS PUMS includes replicate weights, which allow analysts to assess the stat
 There are several special processing rules applied for language tabulations to address variable data quality and availability. Starting in 2016, the Census Bureau made several revisions to language coding and tabulation standards, including adoption of ISO-639-3 standard; a new list of 42 languages to be included in table B16001, and additional geographic restrictions for table B16001 for the 5-year sample to the national, state, MSA/CSA, CD, and PUMA levels. County/tracts must use the collapsed table C16001 with fewer individual languages that had 1 million or 
 more speakers nationally in 2016. However, 2016+ versions of table B16001 have been published in the 1-year ACS releases for counties that met population size and other requirements. For example, the following OR county-year combinations have B16001 (2016+ version) data available:
 
-|  | 2016 | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Multnomah County | x | x |   | x |   | x | x |
-| Washington County | x | x | x |   |   | x | x |
+|  | 2016 | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Multnomah County | x | x |   | x |   | x | x | x |
+| Washington County | x | x | x |   |   | x | x | x |
 
 The starting dataset for the estimation of the number of speakers by language is the ACS PUMS. To generate county-level estimates, data for PUMAs that contain multiple counties were duplicated for each constituent county, and the ACS weights were adjusted such that the county population by age/sex and race/ethnicity were consistent with ACS county level tables B01001 and B01001A-I. For these counties, the PUMS detailed ISO language codes were linked to a language or language group from the published county tables, and then the weights representing the number of language speakers for each by LEP status were adjusted by weighting to the 2015 B16001 county level tabulation (with 32 unique values). In cases where the PUMS did not contain records for persons speaking a language that had a non-zero control total, characteristics were imputed based on a hotdeck from a pooled statewide sample of speakers of that language from a year in 2016 or later. 
 
@@ -133,7 +133,8 @@ For Multnomah and Washington counties, a synthetic estimate of speakers for the 
 - Language is assessed for the population age 5+ only; therefore, sums across languages will not sum to the total population.<br />
 - Disability status is assessed only for the civilian noninstitutionalized population (excluding the population in institutional group quarters such as skilled nursing facilities whose disability status is not surveyed); therefore, sums across disability status will not sum to total population.<br />
 - REALD race/ethnicity is imputed using language, place of birth, and other person-level characteristics, and then adjusted for consistency at the county level by OMB race/ethnicity only. REALD subgroups for White, Asian, or Black are implicitly treated as distributed proportionally to population across each county of a multi-county PUMA. REALD approaches are under ongoing development and results may not match totals published elsewhere.
-
+- RAC2P values changed for the [2023 ACS](https://www.census.gov/programs-surveys/acs/microdata/documentation.html); for the purposes of consistency with prior ACS datasets, RAC2P23 codes were converted to corresponding RAC2P19 codes used in previous releases. Where no corresponding code was available, the RAC2P23 and RAC2P19 codes were collapsed to the most disaggregated common scheme possible between the two data sources. 
+ 
 # Funding Acknowledgement
 OHA IGA#179509 "County-level REALD population estimates"
 
