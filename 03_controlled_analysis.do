@@ -21,6 +21,8 @@
 	- TBD: consider adding 06-10 PUMS for small counties only to inflate representation of rare conditions (especially languages)
 	- TBD: roll up detailed state tabulations (age groups 0-14, 15-17, 18-19, 20(5)30, 30(10)60, 60+) into county broad ages (5-17, 18-64, 65+)
 changelog:
+	~ timestamp for deliverables from 2025-03-20
+	v14: added randomtag to required packages; updated subroutine library version to work with 5ACS23
 	~ timestamp for deliverables from 2024-05-28
 	v13: updating language tables to comply with SOS needs; split re/d/l into separate dofiles
 	~ timestamp for deliverables from 2024-04-24
@@ -45,7 +47,7 @@ if "$censuskey"=="" {
 	qui levelsof v1, clean local(censuskey)
 	global ckey "`censuskey'"
 }
-foreach p in "survwgt" "censusapi" "hotdeckvar" {
+foreach p in "survwgt" "censusapi" "hotdeckvar" "randomtag" {
 	cap which `p'
 	if _rc ssc install `p'
 }
@@ -85,29 +87,29 @@ foreach p in "survwgt" "censusapi" "hotdeckvar" {
 // add subroutines to memory
 do 03a_raceeth_v14.do // add subroutines to memory
 do 03b_disab_v12.do // add subroutines to memory
-do 03c_language_v14.do // add subroutines to memory
+do 03c_language_v17.do // add subroutines to memory
 
 // race-eth
-reControls 2022 // download control totals
-reFile 2022 // generate raked microdata
-*chkTotal 2022 // compare totals
-tabSex 2022 // export results by age/sex
-tabReldRR 2022 // export results by omb rarest race
-tabReldPri 2022 // export totals by reald primary race
+reControls 2023 // download control totals
+reFile 2023 // generate raked microdata
+*chkTotal 2023 // compare totals
+tabSex 2023 // export results by age/sex
+tabReldRR 2023 // export results by omb rarest race
+tabReldPri 2023 // export totals by reald primary race
 
 // disability
-disabyControls 2022 // download control totals
-disabyFile 2022 // generate raked microdata
-tabdisdi 2022 // tables by any disbaility
-tabda4 2022 // tabulate by 4-way classification
-tabda7 2022 // tabulate by 7-way classification
-tabdaoic 2022 // tables by specific disabilities, AOIC
+disabyControls 2023 // download control totals
+disabyFile 2023 // generate raked microdata
+tabdisdi 2023 // tables by any disbaility
+tabda4 2023 // tabulate by 4-way classification
+tabda7 2023 // tabulate by 7-way classification
+tabdaoic 2023 // tables by specific disabilities, AOIC
 
 // languages
-langControls 2022 // download control totals
-langFile 2022 // generate raked microdata
-donorLang 2022 // generate donor observation dataset 
-tablang 2022 // export county tables w/SE (broad age groups)
-tablangSt 2022 // export state table w/SE (detailed age groups)
+langControls 2023 // download control totals
+langFile 2023 // generate raked microdata
+donorLang 2023 // generate donor observation dataset 
+tablang 2023 // export county tables w/SE (broad age groups)
+tablangSt 2023 // export state table w/SE (detailed age groups)
 *sosTable 2019 // copy-paste into Excel
 *sosSplit 2019 // copy-paste into Excel

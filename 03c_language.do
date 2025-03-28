@@ -1,3 +1,4 @@
+* v17: updating for 2023 ACS (var name change st to state)
 * v16: converting sossplit to generate counts from shares
 * v15: added code for special cases for multnomah and washington counties, per SOS language code.
 * v14: added statewide table for detailed age groups; improved SOS tables code; removed mata:st_matrix in favor of tab, matrow.
@@ -370,7 +371,7 @@ prog def langControls
 		*collapse (sum) as_n, by(stcofips year agec11)
 		save temp/control_age_tmp.dta, replace
 end
-*langControls 2021
+*langControls 2019
 
 cap prog drop topdown42
 prog def topdown42
@@ -532,7 +533,7 @@ prog def topdown42
 	** merge controls and add rake step for counts by langfnl for multnomah and washington counties
 	** then final rake all counties to 5ACS22 C16001 + state to 5ACS22 B16001 as before
 end
-* topdown42 2021
+* topdown42 2019
 
 // generate donor samples from previous ACS PUMS 
 ** 	used only to get traits (age/sex/lep) for language speakers not in PUMS, but in ACS tables
@@ -550,8 +551,10 @@ prog def donorLang
 				foreach g in "for=state:41" "for=state:53" {
 					if inrange(`y',2016,2021) & substr("`g'",-2,2)=="53" local g="for=public%20use%20microdata%20area:11101,11102,11103,11104&in=state:53"
 					if inrange(`y',2022,2031) & substr("`g'",-2,2)=="53" local g="for=public%20use%20microdata%20area:21101,21102,21103,21104&in=state:53"
-					local vars="ST,AGEP,SEX,LANX,ENG,LANP,PWGTP" // not keeping PUMA or PUMA10/PUMA20 for donor obs...
+					if `y'<2023 local vars="ST,AGEP,SEX,LANX,ENG,LANP,PWGTP" // not keeping PUMA or PUMA10/PUMA20 for donor obs...
+					if `y'>=2023 local vars="STATE,AGEP,SEX,LANX,ENG,LANP,PWGTP" // name change ST to STATE
 					censusapi, url("https://api.census.gov/data/`y'/acs/acs1/pums?get=`vars'&`g'&key=$ckey") 
+					if `y'>=2023 ren state st
 					assert st<. // ensure it worked
 					keep if lanx==1 // keep only age 5+ non-English speakers
 					destring lanp, replace
@@ -577,7 +580,7 @@ prog def donorLang
 		save "acs/donor_lanp_5acs`yabbv'.dta", replace 
 	}
 end
-*donorLang 2021
+*donorLang 2019
 
 // attach merge/rake points in PUMS
 cap prog drop langFile
@@ -734,13 +737,18 @@ prog def langFile
 	compress
 	save 5ACS`y'_ORWA_RELDPRI_lang.dta, replace
 end
-*langFile 2022
+*langFile 2019
 
 // tables by langoha (subset of langfnl, for languages in any county's top10 total or by lep) 
 cap prog drop tablang
 prog def tablang
 	local y=substr("`1'",3,2)
 	use 5ACS`y'_ORWA_RELDPRI_lang.dta, clear
+	** reconfigure age groups.
+	drop agec3
+	recode agep (5/18=518) (19/64=1964) (65/99=6599), gen(agec3)
+	tostring agec3, replace format(%04.0f)
+	replace agec3="" if !inlist(agec3,"0518","1964","6599")
 	** roll up language categories for use by oha
 	gen langtmp=langc42
 	replace langtmp="ukr" if langfnl==18 // make ukrainian distinct
@@ -757,6 +765,7 @@ prog def tablang
 	** aggregate matrices (lang*lep*agecat)
 	gen byte one=1 
 	levelsof agec3, local(ages)
+	assert `r(r)'==3 // check only 3 unique values
 	levelsof langoha, local(ls)
 	qui foreach l of local ls {
 		local label: label langoha `l'
@@ -956,48 +965,53 @@ prog define sosTable
 		restore
 	}
 	// new table 3 design: OR state + counties BINS non-English by 100s of speakers THEN LEP speakers
+	// plus OHA request for tables by agec3 (5-18, 19-64, 65+)
 	foreach p in "total" "lep" {
-		preserve
-		keep stcofips langfnl `p'_* 
-		ren `p'_`year'_bin bin
-		ren `p'_`year' `p'
-		ren `p'_rank rank
-		keep if bin<.  // filter by 100+ speakers
-		decode bin, gen(bins)
-		replace bins=subinstr(bins,"-","_",.)
-		replace bins=subinstr(bins,"+","",.)
-		decode langfnl, gen(langs)
-		compress
-		replace langs=langs+"|"+strofreal(`p',"%6.0fc")
-		keep stcofips langs bins rank
-		gsort stcofips bins rank
-		by stcofips bins: gen listme=_n
-		subsave stcofips listme langs if bins=="100_299" using tmp1.dta, replace
-		subsave stcofips listme langs if bins=="300_499" using tmp2.dta, replace
-		subsave stcofips listme langs if bins=="500" using tmp3.dta, replace
-		contract stcofips listme
-		drop _freq
-		merge 1:1 stcofips listme using tmp1.dta, assert(1 3) keepus(langs) nogen
-		ren langs langs_100_299
-		merge 1:1 stcofips listme using tmp2.dta, assert(1 3) keepus(langs) nogen
-		ren langs langs_300_499
-		merge 1:1 stcofips listme using tmp3.dta, assert(1 3) keepus(langs) nogen
-		ren langs langs_500
-		for num 1/3: rm tmpX.dta
-		drop listme
-		bys stcofips: gen listme=_n
-		bys stcofips: ingap 1 if listme==1
-		replace langs_100_299=strofreal(stcofips) if listme==.
-		replace langs_100_299="100-299|" if listme==.
-		replace langs_300_499="300-499|" if listme==.
-		replace langs_500="500+" if listme==.
-		replace stcofips=listme if listme<.
-		drop listme*
-		qui for var langs*: replace X="|" if X==""
-		drop if langs_100_299=="|"&langs_300_499=="|"&langs_500=="|"&stcofips>1
-		browse
-		pause
-		restore
+		foreach a in "" "0518" "1964" "6599" { 
+			preserve
+			if "`a'"!="" keep if agec3=="`a'"
+			keep stcofips langfnl `p'_* 
+			ren `p'_`year'_bin bin
+			ren `p'_`year' `p'
+			ren `p'_rank rank
+			keep if bin<.  // filter by 100+ speakers
+			decode bin, gen(bins)
+			replace bins=subinstr(bins,"-","_",.)
+			replace bins=subinstr(bins,"+","",.)
+			decode langfnl, gen(langs)
+			compress
+			replace langs=langs+"|"+strofreal(`p',"%6.0fc")
+			keep stcofips langs bins rank
+			gsort stcofips bins rank
+			by stcofips bins: gen listme=_n
+			subsave stcofips listme langs if bins=="100_299" using tmp1.dta, replace
+			subsave stcofips listme langs if bins=="300_499" using tmp2.dta, replace
+			subsave stcofips listme langs if bins=="500" using tmp3.dta, replace
+			contract stcofips listme
+			drop _freq
+			merge 1:1 stcofips listme using tmp1.dta, assert(1 3) keepus(langs) nogen
+			ren langs langs_100_299
+			merge 1:1 stcofips listme using tmp2.dta, assert(1 3) keepus(langs) nogen
+			ren langs langs_300_499
+			merge 1:1 stcofips listme using tmp3.dta, assert(1 3) keepus(langs) nogen
+			ren langs langs_500
+			for num 1/3: rm tmpX.dta
+			drop listme
+			bys stcofips: gen listme=_n
+			bys stcofips: ingap 1 if listme==1
+			replace langs_100_299=strofreal(stcofips) if listme==.
+			replace langs_100_299="100-299|" if listme==.
+			replace langs_300_499="300-499|" if listme==.
+			replace langs_500="500+" if listme==.
+			replace stcofips=listme if listme<.
+			drop listme*
+			qui for var langs*: replace X="|" if X==""
+			drop if langs_100_299=="|"&langs_300_499=="|"&langs_500=="|"&stcofips>1
+			if "`a'"!="" nois di "Ages: `a'"
+			browse
+			pause
+			restore
+		}
 	}
 end
 *sosTable 2019

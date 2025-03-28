@@ -10,6 +10,9 @@
 	- outputs:
 		- 5ACS`y'_ORWA_RELDPRI.dta = treated PUMS for Oregon + Clark Co, WA with primary race added
 	version:
+	v03 - updating for 5ACS23. n.b.! Iu Mien and Central Asian (Kazakh/Uzbek at least) have their own RAC2P values. THESE SHOULD BE USED GOING FORWARD.
+		(it will be in the REALD25 SOW). temporarily recoding RAC2P23 to RAC2P19 for consistency, e.g.:
+		Mien, Kazakh, Uzbek -> Other Asian; Sikh -> Asian Indian; Aztec/Maya/Mixtec -> Mexican Indian; Taino/Tarasco/Inca -> Latin Am Indian
 	v02 - updated for post-2020 pumas (starting with 2022 ACS); removed flags for control populations (need to rewrite 05a_raceeth.do)
 	v01 - working version up to 2021
 */
@@ -37,7 +40,14 @@ prog def preppums
 			ren PUMA PUMA10
 			local GEO="PUMA10"
 		}
-		if inrange(`year',2022,2025) local GEO="PUMA10 PUMA20"
+		if `year'==2022 {
+			local GEO="PUMA10 PUMA20"
+		}
+		if `year'>=2023 {
+			ren STATE ST
+			ren PUMA PUMA20
+			local GEO="PUMA20"
+		}
 		keep RT SERIALNO ST `GEO' WGTP `TYPE' HINCP ADJINC NP HUPAOC HUPARC HUGCL NOC NRC NPP CPLT HHT2 PARTNER R60 R65 WGTP*
 		gen int YEAR=`year'
 		save OR_House.dta, replace
@@ -50,7 +60,30 @@ prog def preppums
 			ren PUMA PUMA10
 			local GEO="PUMA10"
 		}
-		if inrange(`year',2022,2025) local GEO="PUMA10 PUMA20"
+		if `year'==2022 {
+			local GEO="PUMA10 PUMA20"
+		}
+		if `year'>=2023 {
+			ren STATE ST
+			ren PUMA PUMA20
+			local GEO="PUMA20"
+			recode RAC2P23 (1000=1) (3000=2) ///
+				(4000=43) (4001=46) (4002=48) (4003=49) (4004=52) (4005=44) ///
+				(4006=41) (4007=42) (4008=45) (4009=47) (4010=50) (4011=51) (4012=58) (4013=56) (4015=38) ///
+				(4016=39) (4017=40) (4018=53) (4019=54) (4020=38) (4021=55) (4023/4024=58) (4025=58) ///
+				(5000=4) (5001=5) (5002=23) (5003=12) (5004=13) (5005=15) (5006=17) (5007=23) (5008=26) (5009=23) ///
+				(5010=7) (5011=11) (5012=25) (5013=27) (5014=29) (5015=16) (5016=24) (5017=16) (5018=16) ///
+				(5019/5020=24) (5021=24) (5022/5023=35) (5024=37) (5025=28)
+				(7500=60) (7501=61) (7502=62) (7503/7505=63) (7506=64) (7507=65) (7505/7508=66) ///
+				(8000=67) (9000=68), gen(RAC2P)
+			replace RAC2P=RAC2P19 if RAC2P23==-999 & RAC2P19!=-9
+			replace RAC2P=58 if RAC2P==59 // invalid ASN value for 2023+, so collapse
+			replace RAC2P=27 if inlist(RAC2P,3,8,9,14,18,19,20,21) // invalid AIAN values for 2023+, so collapse to NAM IND
+			replace RAC2P=35 if inlist(RAC2P,30,31,32,33,34) // invalid AIAN values for 2023+, so collapse to AK NATIVE
+			replace RAC2P=37 if RAC2P==36 // invalid AIAN value for 2023+, so collapse (specified to not specified)
+			replace RAC2P=. if RAC2P<0
+			assert RAC2P<.
+		}
 		keep RT SERIALNO SPORDER ST `GEO' PWGTP SEX AGEP HISP POBP ANC1P ANC2P RAC1P RAC2P RAC3P MIGSP LANP ///
 			RACAIAN RACASN RACBLK RACNH RACNUM RACPI RACSOR RACWHT ///
 			HINS* DIS DOUT DPHY DREM DEYE DEAR DDRS HICOV PUBCOV PRIVCOV RELSHIPP ///
@@ -76,9 +109,15 @@ prog def preppums
 			local GEO="PUMA10"
 			keep if inlist(PUMA10,11101,11102,11103,11104)
 		}
-		if inrange(`year',2022,2025) {
+		if `year'==2022 {
 			local GEO="PUMA10 PUMA20"
 			keep if inlist(PUMA10,11101,11102,11103,11104) | inlist(PUMA20,21101,21102,21103,21104)
+		}
+		if `year'==2023 {
+			ren STATE ST
+			ren PUMA PUMA20
+			local GEO="PUMA20"
+			keep if inlist(PUMA20,21101,21102,21103,21104)
 		}
 		if `year'<2020 local TYPE="TYPE"
 		if `year'>=2020 local TYPE="TYPEHUGQ"
@@ -99,9 +138,31 @@ prog def preppums
 			local GEO="PUMA10"
 			keep if inlist(PUMA10,11101,11102,11103,11104)
 		}
-		if inrange(`year',2022,2025) {
+		if `year'==2022 {
 			local GEO="PUMA10 PUMA20"
 			keep if inlist(PUMA10,11101,11102,11103,11104) | inlist(PUMA20,21101,21102,21103,21104)
+		}
+		if `year'>=2023 {
+			ren STATE ST
+			ren PUMA PUMA20
+			local GEO="PUMA20"
+			keep if inlist(PUMA20,21101,21102,21103,21104)
+			recode RAC2P23 (1000=1) (3000=2) ///
+				(4000=43) (4001=46) (4002=48) (4003=49) (4004=52) (4005=44) ///
+				(4006=41) (4007=42) (4008=45) (4009=47) (4010=50) (4011=51) (4012=58) (4013=56) (4015=38) ///
+				(4016=39) (4017=40) (4018=53) (4019=54) (4020=38) (4021=55) (4023/4024=58) (4025=58) ///
+				(5000=4) (5001=5) (5002=23) (5003=12) (5004=13) (5005=15) (5006=17) (5007=23) (5008=26) (5009=23) ///
+				(5010=7) (5011=11) (5012=25) (5013=27) (5014=29) (5015=16) (5016=24) (5017=16) (5018=16) ///
+				(5019/5020=24) (5021=24) (5022/5023=35) (5024=37) (5025=28)
+				(7500=60) (7501=61) (7502=62) (7503/7505=63) (7506=64) (7507=65) (7505/7508=66) ///
+				(8000=67) (9000=68), gen(RAC2P)
+			replace RAC2P=RAC2P19 if RAC2P23==-999 & RAC2P19!=-9
+			replace RAC2P=58 if RAC2P==59 // invalid ASN value for 2023+, so collapse
+			replace RAC2P=27 if inlist(RAC2P,3,8,9,14,18,19,20,21) // invalid AIAN values for 2023+, so collapse to NAM IND
+			replace RAC2P=35 if inlist(RAC2P,30,31,32,33,34) // invalid AIAN values for 2023+, so collapse to AK NATIVE
+			replace RAC2P=37 if RAC2P==36 // invalid AIAN value for 2023+, so collapse (specified to not specified)
+			replace RAC2P=. if RAC2P<0
+			assert RAC2P<.
 		}
 		keep RT SERIALNO SPORDER ST `GEO' PWGTP SEX AGEP HISP POBP ANC1P ANC2P RAC1P RAC2P RAC3P MIGSP LANP ///
 			RACAIAN RACASN RACBLK RACNH RACNUM RACPI RACSOR RACWHT ///
@@ -279,31 +340,35 @@ prog def expandpums
 	// convert PUMAC to county (mixed 2010 and 2020 PUMAs)
 	if inrange(`year',2022,2025) {
 		gen byte factor=.
-		do acs/pumac10.do
-		replace pumac=16 if state==53 & inrange(puma10,11101,11104)
-		lab def pumac10_lbl 16 "CLARK-WA", add modify
-		ren pumac tmp10
+		if `year'==2022 {
+			do acs/pumac10.do
+			replace pumac=16 if state==53 & inrange(puma10,11101,11104)
+			lab def pumac10_lbl 16 "CLARK-WA", add modify
+			ren pumac tmp10
+		}
 		do acs/pumac20.do
 		replace pumac=17 if state==53 & inlist(puma20,21101,21102,21103,21104)
 		lab def pumac20_lbl 17 "CLARK-WA", add modify
 		ren pumac pumac20
-		ren tmp10 pumac10
-		replace factor=4 if pumac10==1
-		replace factor=9 if pumac10==2
-		replace factor=4 if pumac10==3
-		replace factor=1 if pumac10==4
-		replace factor=4 if pumac10==5
-		replace factor=2 if pumac10==6
-		replace factor=1 if pumac10==7
-		replace factor=3 if pumac10==8
-		replace factor=1 if pumac10==9
-		replace factor=1 if pumac10==10
-		replace factor=1 if pumac10==11
-		replace factor=2 if pumac10==12
-		replace factor=1 if pumac10==13
-		replace factor=1 if pumac10==14
-		replace factor=1 if pumac10==15 
-		replace factor=1 if pumac10==16 // wa: clark
+		if `year'==2022 {
+			ren tmp10 pumac10
+			replace factor=4 if pumac10==1
+			replace factor=9 if pumac10==2
+			replace factor=4 if pumac10==3
+			replace factor=1 if pumac10==4
+			replace factor=4 if pumac10==5
+			replace factor=2 if pumac10==6
+			replace factor=1 if pumac10==7
+			replace factor=3 if pumac10==8
+			replace factor=1 if pumac10==9
+			replace factor=1 if pumac10==10
+			replace factor=1 if pumac10==11
+			replace factor=2 if pumac10==12
+			replace factor=1 if pumac10==13
+			replace factor=1 if pumac10==14
+			replace factor=1 if pumac10==15 
+			replace factor=1 if pumac10==16 // wa: clark
+		}
 		replace factor=4 if pumac20==1 
 		replace factor=7 if pumac20==2
 		replace factor=4 if pumac20==3
@@ -326,6 +391,7 @@ prog def expandpums
 		bys serialno sporder: gen listme=_n // should top out at factorvalue.
 		tostring state, replace force
 		gen county=""
+		cap gen pumac10=. // doesn't exist in 5ACS23+
 		replace county="001" if (pumac10==1 & listme==1) | (pumac20==1 & listme==1) // baker
 		replace county="059" if (pumac10==1 & listme==2) | (pumac20==1 & listme==2) // umatilla
 		replace county="061" if (pumac10==1 & listme==3) | (pumac20==1 & listme==3) // union
