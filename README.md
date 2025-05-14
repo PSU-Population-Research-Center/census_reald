@@ -114,6 +114,16 @@ Because of the narrow focus of these tabulations, the constraining totals chosen
 
 After the REALD characteristics are imputed from the available PUMS data fields, the records are segmented by PUMA, and the original data fields are used to impute new weights that accord to the small area constraining totals for each of the counties that constitute the multi-county PUMAs. The ACS PUMS includes replicate weights, which allow analysts to assess the statistical uncertainty in most types of tabulations generated from the PUMS. Replicate weights are converted from PUMA to county areas by assuming that the variability within each county sub-sample is equal, in which case errors are proportional to sample size.<sup>[\[3\]](#footnote-3)</sup>
 
+# Disability
+
+Disability is a multifaceted and complex issue. The current ACS instrument was introduced in 2008, and collects six items to assess disability among the non-institutionalized population, according to the age of the respondent. Respondents who one or more of the following six disability types are considered to have a disability:
+- Hearing difficulty (deaf or having serious difficulty hearing; all ages screened).
+- Vision difficulty (blind or having serious difficulty seeing, even when wearing glasses; all ages screened).
+- Cognitive difficulty (a physical, mental, or emotional problem that causes difficulty remembering, concentrating, or making decisions; ages 5+ only screened).
+- Ambulatory difficulty (serious difficulty walking or climbing stairs; ages 5+ only screened).
+- Self-care difficulty (difficulty bathing or dressing; ages 5+ only screened).
+- Independent living difficulty (a physical, mental, or emotional problem that causes difficulty doing errands alone such as visiting a doctor’s office or shopping; only ages 18+ screened).
+
 # Languages
 
 There are several special processing rules applied for language tabulations to address variable data quality and availability. Starting in 2016, the Census Bureau made several revisions to language coding and tabulation standards, including adoption of ISO-639-3 standard; a new list of 42 languages to be included in table B16001, and additional geographic restrictions for table B16001 for the 5-year sample to the national, state, MSA/CSA, CD, and PUMA levels. County/tracts must use the collapsed table C16001 with fewer individual languages that had 1 million or 
