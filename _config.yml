@@ -7,7 +7,7 @@ markdown: kramdown
 kramdown:
   math_engine: mathjax
 include:
-  - _includes/head-custom.html
+  - _includes/mathjax.html
 plugins:
   - jekyll-remote-theme
   - jekyll-include-cache
