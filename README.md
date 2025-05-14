@@ -59,6 +59,7 @@ The REALD & SOGI unit of OHA developed coding heuristics which use the following
 In order to protect respondent privacy and prevent reidentification of households, the ACS PUMS employs several disclosure avoidance strategies, including aggregation of responses to geographies that represent 100,000 persons or more as of the last decennial Census. These geographies, called PUMAs, are made up of contiguous census tracts, and are updated after each decennial census. Because of the 100,000 persons minimum threshold, PUMAs may be larger or smaller than counties, and may contain parts of counties when a county contains more than one tract. For example, a consistent grouping which delineates whole counties in Oregon (plus Clark County, WA) only includes 16 geographical units (PUMA-Counties or PUMAC), ranging from 1 to 9 counties in each area:
 
 | **2010 Census PUMACs (2012-2021 PUMS):** | **2020 Census PUMACs (2022-2031 PUMS):** | 
+| --- | --- | 
 | 1: BAKER, UMATILLA, UNION, WALLOWA | 1: BAKER, GRANT, GILLIAM, HOOD RIVER, MORROW, SHERMAN, UMATILLA, UNION, WASCO, WALLOWA, WHEELER | 
 | 2: CROOK, GILLIAM, GRANT, HOOD RIVER, JEFFERSON, MORROW, SHERMAN, WASCO, WHEELER | 2: CROOK, JEFFERSON, DESCHUTES | 
 | 3: HARNEY, KLAMATH, LAKE, MALHEUR | 3: HARNEY, KLAMATH, LAKE, MALHEUR | 
