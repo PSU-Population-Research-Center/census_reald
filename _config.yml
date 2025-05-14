@@ -3,3 +3,6 @@ title: Population Data in Oregon REALD categories
 description: Information and downloads for the project, “County-level REALD population estimates”, producing novel data on race, ethnicity, language, and disability from American Community Survey (ACS) data at mixed spatial scales for Oregon counties and for Clark County, WA.
 #avatar: ./assets/img/avatar.png
 enable_footnote: false
+
+include:
+  - _includes/head.html
