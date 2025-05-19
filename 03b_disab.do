@@ -1,4 +1,5 @@
-* v13: increased iterations; removed mata:st_matrix in favor of tab, matrow
+* v14: add label/metadata for stata data exports and totals.
+* v13: increased iterations; removed mata:st_matrix in favor of tab, matrow; iw insead of fw.
 
 /*** part 2
  *                                                                                     
@@ -19,7 +20,7 @@
 /* From Marjorie: For Disability:  
 	Statewide and Regions: DA7compACSall DISDi; DA4cat 
 	and the DAOICv2 vars where:  0 "Does not have this limitation" ; 1 "This limitation only" and  "2+ limitations".   
-	At a county level – for very small counties… the same except likely DA7compACSall – please advise after you can run some tables…
+	At a county level â€“ for very small countiesâ€¦ the same except likely DA7compACSall â€“ please advise after you can run some tablesâ€¦
 */ 
 
 // obtain control totals by age/sex/disaby
@@ -166,7 +167,7 @@ prog def disabyFile
 			levelsof agec5 if _fillin, local(ages) clean
 			** impute missing ages
 			foreach a of local ages {
-				sum agep if agec5=="`a'" & `d'==1 [fw=pwgtp] 
+				sum agep if agec5=="`a'" & `d'==1 [iw=pwgtp] 
 				cap replace agep=round(`r(mean)') if _fillin==1 & agec5=="`a'"
 				if _rc drop if _fillin==1 & agec5=="`a'" 
 			}
@@ -354,6 +355,43 @@ prog def disabyFile
 end
 *disabyFile 2020
 
+// labels for datasets
+cap prog drop diLabel
+prog def diLabel
+	gen int year=`1'
+	label var year "last year of 5ACS`1' sample"
+	label var stcofips "FIPS code (2-digit State + 3-digit County)"
+	label var sex "Sex (0=Total 1=Male 2=Female)"
+	label var agecat "Age Group (-1=Total; 0-4 5-14 15-17 18-19 20-24 25-29 30-39 40-49 50-59 60-64 65+)"
+	label var b "Estimate"
+	format b %9.0g
+	label var se "Standard Error"
+	format se %7.4g
+	label var p "p-value of hypothesis: b not equal to 0"
+	format p %4.3f
+	label var ll "90% CI: lower value"
+	replace ll=max(0,ll)
+	format ll %7.0f
+	label var ul "90% CI: upper value"
+	format ul %7.0f
+	drop z df crit eform
+	lab def SEX 0 "Total" 1 "Male" 2 "Female", replace
+	lab def AGEC11 -1 "Total" 0 "0-4" 5 "5-14" 15 "15-17" 18 "18-19" 20 "20-24" 25 "25-29" 30 "30-39" 40 "40-49" 50 "50-59" 60 "60-64" 65 "65+", replace
+	label values agecat AGEC11
+	label values sex SEX
+	recast byte sex
+	recast byte agecat
+	gen rse=se/b
+	format rse %3.2f
+	label var rse "Relative Standard Error (RSE=se/b)"
+	replace rse=round(rse,.01)
+	recode rse (0/.299=1) (.3/.499=2) (.5/.=3), gen(flag)
+	label var flag "RSE-derived reliability flag (0 reliable; >.3 unreliable; >.5 highly unreliable)"
+	lab def FLAG 1 "Reliable" 2 "Unreliable" 3 "Highly Unreliable"
+	label values flag FLAG
+	assert flag<.
+end
+
 // tables by disdi
 cap prog drop tabdisdi
 prog def tabdisdi
@@ -369,12 +407,13 @@ prog def tabdisdi
 		drop _fillin
 		gen byte one=1 
 		levelsof agecat, local(ages)
-		qui forvalues d=0/1 {
+		qui forvalues d=-1/1 {
 			nois di _newline ". Disab: disdi:`d' | Age: " _cont
 			foreach a of local ages {
 				nois di "`a'." _cont
 				ereturn clear
-				svy sdr: total one if agecat==`a' & disdi==`d', over(stcofips) 
+				if `d'>=0 svy sdr: total one if agecat==`a' & disdi==`d', over(stcofips) 
+				else if `d'==-1 svy sdr: total one if agecat==`a' & disdi<., over(stcofips) 
 				mat table=r(table)
 				mat table=table'
 				qui tab stcofips, matrow(stcofips)
@@ -383,20 +422,31 @@ prog def tabdisdi
 				mat agecat=J(37,1,`a')
 				mat result=stcofips,sex,disdi,agecat,table
 				mat master=master\result
+				if `a'==65 { // sum across ages
+					nois di "-1." _cont
+					ereturn clear
+					if `d'>=0 svy sdr: total one if disdi==`d', over(stcofips) 
+					else if `d'==-1 svy sdr: total one if disdi<., over(stcofips) 
+					mat table=r(table)
+					mat table=table'
+					qui tab stcofips, matrow(stcofips)
+					mat sex=J(37,1,0)
+					mat disdi=J(37,1,`d')
+					mat agecat=J(37,1,-1)
+					mat result=stcofips,sex,disdi,agecat,table
+					mat master=master\result
+				}
 			}
 		}
 		drop _all
 		svmat master, names(col)
 		drop if stcofips==.
+		diLabel `1'
+		lab def DIS2 -1 "Total" 0 "No disability" 1 "One or more conditions", replace
+		lab var disdi "Disability status (2-way)"
+		label values disdi DISDI
 		save results/results_disdi_`1'.dta, replace
 	}
-	** clean for excel export
-	collapse (sum) b, by(stcofips disdi agecat)
-	reshape wide b, i(stcofips agecat) j(disdi )
-	rename b* disdi*_
-	reshape wide disdi0_ disdi1_, i(stcofips) j(agecat) 
-	order *, seq
-	order stcofips
 end
 *tabdisdi 2020
 
@@ -415,16 +465,17 @@ prog def tabda4
 		drop _fillin
 		gen byte one=1 
 		levelsof agecat, local(ages)
-		levelsof da4cat, local(ds)
-		qui foreach d of local ds {
+		qui forvalues d=-1/3 {
 			nois di _newline ". Disab: da4cat:`d' | Age: " _cont
 			foreach a of local ages {
 				nois di "`a'." _cont
+				ereturn clear
 				if `d'==3 & `a'==0 { // no iadl/severe for age 0-4
 					mat table=J(37,9,0)
 				}
 				else {
-					svy sdr: total one if agecat==`a' & da4cat==`d', over(stcofips) 
+					if `d'>=0 svy sdr: total one if agecat==`a' & da4cat==`d', over(stcofips) 
+					else if `d'==-1 svy sdr: total one if agecat==`a' & da4cat<., over(stcofips) 
 					mat table=r(table)'
 				}
 				qui tab stcofips, matrow(stcofips)
@@ -433,20 +484,30 @@ prog def tabda4
 				mat agecat=J(37,1,`a')
 				mat result=stcofips,sex,da4cat,agecat,table
 				mat master=master\result
+				if `a'==65 { // aggregate across ages
+					nois di "-1." _cont
+					ereturn clear
+					if `d'>=0 svy sdr: total one if da4cat==`d', over(stcofips) 
+					else if `d'==-1 svy sdr: total one if da4cat<., over(stcofips) 
+					mat table=r(table)'
+					qui tab stcofips, matrow(stcofips)
+					mat sex=J(37,1,0)
+					mat da4cat=J(37,1,`d')
+					mat agecat=J(37,1,-1)
+					mat result=stcofips,sex,da4cat,agecat,table
+					mat master=master\result
+				}
 			}
 		}
 		drop _all
 		svmat master, names(col)
 		drop if stcofips==.
+		diLabel `1'
+		lab def DIS4 -1 "Total" 0 "No disability" 1 "One limitation of hearing/vision/mobility/memory" 2 "Two or more limitations of hearing/vision/mobility/memory" 3 "Limited indep.liv/self-care/perm.da/ssi/ltc", replace
+		lab var da4cat "Disability status (4-way)"
+		label values da4cat DIS4
 		save results/results_da4cat_`1'.dta, replace
 	}
-	** clean for excel export
-	collapse (sum) b, by(stcofips da4cat agecat)
-	reshape wide b, i(stcofips agecat) j(da4cat )
-	rename b* da4cat*_
-	reshape wide da4cat0_ da4cat1_ da4cat2_ da4cat3_, i(stcofips) j(agecat) 
-	order *, seq
-	order stcofips
 end
 *tabda4 2020
 
@@ -465,16 +526,17 @@ prog def tabda7
 		drop _fillin
 		gen byte one=1 
 		levelsof agecat, local(ages)
-		levelsof da7compacsall, local(ds)
-		qui foreach d of local ds {
+		qui forvalues d=-1/6 {
 			nois di _newline ". Disab: da7compacsall:`d' | Age: " _cont
 			foreach a of local ages {
 				nois di "`a'." _cont
+				ereturn clear
 				if `a'==0 & inlist(`d',3,4,6) {
 					mat table=J(37,9,0) // all zeros
 				}
 				else {
-					svy sdr: total one if agecat==`a' & da7compacsall==`d', over(stcofips) 
+					if `d'>=0 svy sdr: total one if agecat==`a' & da7compacsall==`d', over(stcofips) 
+					else if `d'==-1 svy sdr: total one if agecat==`a' & da7compacsall<., over(stcofips) 
 					mat table=r(table)'
 				}
 				qui tab stcofips, matrow(stcofips)
@@ -483,21 +545,30 @@ prog def tabda7
 				mat agecat=J(37,1,`a')
 				mat result=stcofips,sex,da7compacsall,agecat,table
 				mat master=master\result
+				if `a'==65 {
+					nois di "-1." _cont
+					ereturn clear
+					if `d'>=0 svy sdr: total one if da7compacsall==`d', over(stcofips) 
+					else if `d'==-1 svy sdr: total one if da7compacsall<., over(stcofips) 
+					mat table=r(table)'
+					qui tab stcofips, matrow(stcofips)
+					mat sex=J(37,1,0)
+					mat da7compacsall=J(37,1,`d')
+					mat agecat=J(37,1,-1)
+					mat result=stcofips,sex,da7compacsall,agecat,table
+					mat master=master\result
+				}
 			}
 		}
 		drop _all
 		svmat master, names(col)
 		drop if stcofips==.
+		diLabel `1'
+		lab def DIS7 -1 "Total" 0 "No disability" 1 "Hearing only" 2 "Vision only" 3 "Mobility only" 4 "Cognitive only" 5 "Two or more limitations (excl. IL/SC)" 6 "Indep.Liv./Self Care", replace
+		lab var da7compacsall "Disability status (7-way)"
+		label values da7compacsall DIS7
 		save results/results_da7compacsall_`1'.dta, replace
 	}
-	** clean for excel export
-	collapse (sum) b, by(stcofips da7compacsall agecat)
-	reshape wide b, i(stcofips agecat) j(da7compacsall )
-	rename b* da7compacsall*_
-	reshape wide da7compacsall0_ da7compacsall1_ da7compacsall2_ da7compacsall3_ ///
-				 da7compacsall4_ da7compacsall5_ da7compacsall6_, i(stcofips) j(agecat) 
-	order *, seq
-	order stcofips
 end
 *tabda7 2020
 
@@ -522,12 +593,14 @@ prog def tabdaoic
 				nois di _newline ". Disab: `v'oicv2:`d' | Age: " _cont
 				qui foreach a of local ages {
 					nois di "`a'." _cont
+					ereturn clear
 					if (`a'==0 & inlist("`v'","dphy","drem","ddrs","dout")) | ///
 					   (`a'==5 & inlist("`v'","dout")) {
 						mat table=J(37,9,0)
 					}
 					else {
-						svy sdr: total one if agecat==`a' & `v'oicv2==`d', over(stcofips) 
+						if `d'>=0 svy sdr: total one if agecat==`a' & `v'oicv2==`d', over(stcofips) 
+						else if `d'==-1 svy sdr: total one if agecat==`a' & `v'oicv2<., over(stcofips) 
 						mat table=r(table)'
 					}
 					qui tab stcofips, matrow(stcofips)
@@ -536,28 +609,37 @@ prog def tabdaoic
 					mat agecat=J(37,1,`a')
 					mat result=stcofips,sex,`v'oicv2,agecat,table
 					mat master=master\result
+					if `a'==65 {
+						nois di "-1." _cont
+						ereturn clear
+						if `d'>=0 svy sdr: total one if `v'oicv2==`d', over(stcofips) 
+						else if `d'==-1 svy sdr: total one if `v'oicv2<., over(stcofips) 
+						mat table=r(table)'
+						qui tab stcofips, matrow(stcofips)
+						mat sex=J(37,1,0)
+						mat `v'oicv2=J(37,1,`d')
+						mat agecat=J(37,1,-1)
+						mat result=stcofips,sex,`v'oicv2,agecat,table
+						mat master=master\result
+					}
 				}
 			}
 			drop one
 			drop _all
 			svmat master, names(col)
 			drop if stcofips==.
+			diLabel `1'
+			lab def DIS3 0 "Without this condition" 1 "With this condition only" 2 "With this and one or more other conditions", replace
+			lab values `v'oicv2 DIS3
+			cap lab var dearoicv2 "Hearing impairment (3-way)"
+			cap lab var deyeoicv2 "Vision impairment (3-way)"
+			cap lab var dphyoicv2 "Mobility impairment (3-way)"
+			cap lab var dremoicv2 "Cognitive impairment (3-way)"
+			cap lab var ddrsoicv2 "Self-care impairment (3-way)"
+			cap lab var doutoicv2 "Independent Living impairment (3-way)"
 			save results/results_`v'oicv2_`1'.dta, replace
 			restore
 		}
-	}
-	** clean for excel export
-	foreach v in "dear" "deye" "dphy" "drem" "ddrs" "dout" {
-		use results/results_`v'oicv2_`1'.dta, clear
-		collapse (sum) b, by(stcofips `v'oicv2 agecat)
-		reshape wide b, i(stcofips agecat) j(`v'oicv2 )
-		rename b* `v'oicv2*_
-		reshape wide `v'oicv20_ `v'oicv21_ `v'oicv22_, i(stcofips) j(agecat) 
-		order *, seq
-		order stcofips
-		*browse
-		*pause on
-		*pause
 	}
 end
 *tabdaoic 2020
