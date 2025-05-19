@@ -1,3 +1,6 @@
+* v17: added split for reldpri exports by sex, to avoid out of memory for matrices issue.
+* v16: added total race (no age) and total age (no sex) to exports; updated reLabel subroutine; changed svy to quiet.
+* v15: add label/metadata for stata data exports.
 * v14: output stcofips in rows instead of county 1--37; removed mata:st_matrix in favor of tab, matrow
 * v13: bugfixes
 * v12: fork out of controlled_analysis.do
@@ -317,6 +320,7 @@ prog def reFile
 	replace ombrr="other" if racsor==1 & ombrr=="" // nh+sora
 	version 13: table ombrr, contents(sum pwt2) format(%10.0fc) row
 	encode ombrr, gen(ombrrn) // alpha order 1=n 2=a 3=b 4=h 5=p 6=o 7=w
+	lab def ombrr 0 "total", add
 	assert ombrrn<.
 	// CHECK
 	version 13: table stcofips, contents(sum pwgtp sum pwt1 sum pwt2 sum pwt3 mean atot) format(%7.0fc) row // pwt3 should match ACS SF.
@@ -362,9 +366,46 @@ prog def chkTotal
 end
 *chkTotal 2020
 
-// totals by detailed age/sex
-capture prog drop tabSex
-prog def tabSex
+// labels for datasets
+cap prog drop reLabel
+prog def reLabel
+	gen int year=`1'
+	label var year "last year of 5ACS`1' sample"
+	label var stcofips "FIPS code (2-digit State + 3-digit County)"
+	label var sex "Sex (0=Total 1=Male 2=Female)"
+	label var agecat "Age Group (-1=Total; 0-4 5-14 15-17 18-19 20-24 25-29 30-39 40-49 50-59 60-64 65+)"
+	label var b "Estimate"
+	format b %9.0g
+	label var se "Standard Error"
+	format se %7.4g
+	label var p "p-value of hypothesis: b not equal to 0"
+	format p %4.3f
+	label var ll "90% CI: lower value"
+	replace ll=max(0,ll)
+	format ll %7.0f
+	label var ul "90% CI: upper value"
+	format ul %7.0f
+	drop z df crit eform
+	lab def SEX 0 "Total" 1 "Male" 2 "Female", replace
+	lab def AGEC11 -1 "Total" 0 "0-4" 5 "5-14" 15 "15-17" 18 "18-19" 20 "20-24" 25 "25-29" 30 "30-39" 40 "40-49" 50 "50-59" 60 "60-64" 65 "65+", replace
+	label values agecat AGEC11
+	label values sex SEX
+	recast byte sex
+	recast byte agecat
+	gen rse=se/b
+	format rse %3.2f
+	label var rse "Relative Standard Error (RSE=se/b)"
+	replace rse=round(rse,.01)
+	recode rse (0/.299=1) (.3/.499=2) (.5/.=3), gen(flag)
+	label var flag "RSE-derived reliability flag (0 reliable; >.3 unreliable; >.5 highly unreliable)"
+	lab def FLAG 1 "Reliable" 2 "Unreliable" 3 "Highly Unreliable"
+	label values flag FLAG
+	assert flag<.
+end
+
+// totals by detailed age/sex (A,AS)
+capture prog drop tabAgeSex
+prog def tabAgeSex
 	cap use results/results_agesex_`1'.dta, clear
 	if _rc {
 		local y=substr("`1'",3,2)
@@ -375,9 +416,11 @@ prog def tabSex
 		mat master=J(1,12,.)
 		matrix colnames master="stcofips" "sex" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
 		levelsof agecat, local(ages)
-		forvalues s=1/2 {
+		forvalues s=0/2 {
 			foreach a of local ages {
-				svy: total one if agecat==`a' & sex==`s', over(stcofips)
+				ereturn clear
+				if `s'>0 qui svy: total one if agecat==`a' & sex==`s', over(stcofips)
+				else if `s'==0 qui svy: total one if agecat==`a' & sex<., over(stcofips)
 				mat table=r(table)
 				mat table=table'
 				qui tab stcofips, matrow(stcofips)
@@ -385,24 +428,30 @@ prog def tabSex
 				mat agecat=J(37,1,`a')
 				mat result=stcofips,sex,agecat,table
 				mat master=master\result
+				if `a'==65 { // add total across ages
+					ereturn clear
+					if `s'>0 qui svy: total one if sex==`s', over(stcofips)
+					else if `s'==0 qui svy: total one if sex<., over(stcofips)
+					mat table=r(table)
+					mat table=table'
+					qui tab stcofips, matrow(stcofips)
+					mat sex=J(37,1,`s')
+					mat agecat=J(37,1,-1)
+					mat result=stcofips,sex,agecat,table
+					mat master=master\result
+				}
 			}
 		}
 		drop _all
 		svmat master, names(col)
+		drop if stcofips==.
+		reLabel `1'
 		save results/results_agesex_`1'.dta, replace
 	}
-	** clean for excel export
-	drop if stcofips==.
-	keep stcofips sex agecat b
-	reshape wide b, i(stcofips agecat) j(sex)
-	rename *1 *male
-	rename *2 *female
-	reshape wide bmale bfemale, i(stcofips) j(agecat)
-	order stcofips bmale* bfemale*
 end
-*tabSex 2020
+*tabAgeSex 2020
 
-// totals by OMB rarest race/ethnicity and age/sex (don't need by sex, but retaining)
+// totals by OMB rarest race/ethnicity (R,RS,ARS)
 capture prog drop tabReldRR
 prog def tabReldRR
 	cap use results/results_agesex_ombrr_`1'.dta, clear
@@ -415,11 +464,21 @@ prog def tabReldRR
 		mat master=J(1,13,.)
 		mat colnames master="stcofips" "sex" "ombrrn" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
 		levelsof agecat, local(ages)
-		forvalues s=1/2 {
-			forvalues r=1/7 {
+		forvalues s=0/2 {
+			if `s'==0 local slbl="total"
+			if `s'==1 local slbl="male"
+			if `s'==2 local slbl="female"
+			forvalues r=0/7 {
+				local rlbl: label ombrrn `r'
+				if `r'==0 local rlbl="total"
+				nois di _newline ". Now running: Sex: `slbl' OMBRR: `rlbl' Age: " _cont
 				foreach a of local ages {
+					nois di "`a'." _cont
 					ereturn clear
-					svy sdr: total one if agecat==`a' & sex==`s' & ombrrn==`r', over(stcofips) 
+					if `s'>0 & `r'>0 qui svy sdr: total one if agecat==`a' & ombrrn==`r' & sex==`s', over(stcofips) 
+					else if `s'==0 & `r'>0 qui svy sdr: total one if agecat==`a' & ombrrn==`r' & sex<., over(stcofips) 
+					else if `s'==0 & `r'==0 qui svy sdr: total one if agecat==`a' & ombrrn<. & sex<., over(stcofips) 
+					else if `s'>0 & `r'==0 qui svy sdr: total one if agecat==`a' & ombrrn<. & sex==`s', over(stcofips) 
 					mat table=r(table)
 					mat table=table'
 					qui tab stcofips, matrow(stcofips)
@@ -428,55 +487,74 @@ prog def tabReldRR
 					mat agecat=J(37,1,`a')
 					mat result=stcofips,sex,ombrrn,agecat,table
 					mat master=master\result
+					if `a'==65 { // add total across ages
+						nois di "-1." _cont
+						ereturn clear
+						if `s'>0 & `r'>0 qui svy: total one if ombrrn==`r' & sex==`s', over(stcofips)
+						else if `s'==0 & `r'>0 qui svy: total one if ombrrn==`r' & sex<., over(stcofips)
+						else if `s'==0 & `r'==0 qui svy: total one if ombrrn<. & sex<., over(stcofips)
+						else if `s'>0 & `r'==0 qui svy: total one if ombrrn<. & sex==`s', over(stcofips)
+						mat table=r(table)
+						mat table=table'
+						qui tab stcofips, matrow(stcofips)
+						mat sex=J(37,1,`s')
+						mat ombrrn=J(37,1,`r')
+						mat agecat=J(37,1,-1)
+						mat result=stcofips,sex,ombrrn,agecat,table
+						mat master=master\result
+					}
 				}
 			}
 		}
+		di _newline
 		drop _all
 		svmat master, names(col)
-		lab def ombrr 1 "aian" 2 "asian" 3 "black" 4 "hispanic" 5 "nhpi" 6 "other" 7 "white", replace
-		label values ombrr ombrr
+		lab def ombrr 0 "total" 1 "aian" 2 "asian" 3 "black" 4 "hispanic" 5 "nhpi" 6 "other" 7 "white", replace
+		label values ombrrn ombrr
 		decode ombrrn, gen(ombrr)
 		drop ombrrn
 		drop if stcofips==.
+		reLabel `1'
+		label var ombrr "OMB Single Race (1997 Standard; Rarest Race Method)"
 		save results/results_agesex_ombrr_`1'.dta, replace
 	}
-	** clean for excel export
-	keep stcofips sex ombrr agecat b
-	reshape wide b, i(stcofips agecat ombrr) j(sex)
-	rename *1 *male
-	rename *2 *female
-	reshape wide bmale bfemale, i(stcofips agecat) j(ombrr) string
-	reshape wide bmale* bfemale*, i(stcofips) j(agecat) 
-	order stcofips bmaleaian* bmaleasian* bmaleblack* bmalehispanic* bmalenhpi* bmaleother* bmalewhite* ///
-		bfemaleaian* bfemaleasian* bfemaleblack* bfemalehispanic* bfemalenhpi* bfemaleother* bfemalewhite* 
 end
 *tabReldRR 2020
 
-// totals by REALD primary race and age/sex (don't need by sex, but retaining)
+// totals by REALD primary race and age/sex (RE,RES,ARES)
+** too large of matrix; must iterate by sex or remove the totals.
 cap prog drop tabReldPri
 prog def tabReldPri
 	cap use results/results_agesex_reldpri_`1'.dta, clear
 	if _rc {
+		touch results/results_agesex_reldpri_`1'.dta, replace
 		local y=substr("`1'",3,2)
 		use stcofips sex reldpri agecat pwt* pwgtp* one using 5ACS`y'_ORWA_RELDPRI_raceeth.dta, clear
 		fillin stcofips sex reldpri agecat
 		qui for var pwt3 pwgtp1-pwgtp80: replace X=0 if X==. 
 		drop _fillin
 		encode reldpri, gen(reldprin)
-		mat master=J(1,13,.)
-		mat colnames master="stcofips" "sex" "reldprin" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
 		levelsof agecat, local(ages)
-		forvalues s=1/2 {
+		forvalues s=0/2 {
+			cap restore, not
+			preserve
+			if `s'==0 local slbl="total"
 			if `s'==1 local slbl="male"
 			if `s'==2 local slbl="female"
-			forvalues r=1/37 {
+			mat master=J(1,13,.)
+			mat colnames master="stcofips" "sex" "reldprin" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+			forvalues r=0/37 {
 				local rlbl: label reldprin `r'
+				if `r'==0 local rlbl="Total"
 				nois di _newline ". Now running: Sex: `slbl' REALD: `rlbl' Age: " _cont
 				foreach a of local ages {
 					nois di "`a'." _cont
 					ereturn clear
-					nois cap svy sdr: total one if agecat==`a' & sex==`s' & reldprin==`r', over(stcofips) 
-					if _rc mat table=J(9,37,0)
+					if `s'>0 & `r'>0 qui cap svy sdr: total one if agecat==`a' & reldprin==`r' & sex==`s', over(stcofips) 
+					else if `s'==0 & `r'>0 qui cap svy sdr: total one if agecat==`a' & reldprin==`r' & sex<., over(stcofips) 
+					else if `s'==0 & `r'==0 qui cap svy sdr: total one if agecat==`a' & reldprin<. & sex<., over(stcofips) 
+					else if `s'>0 & `r'==0 qui cap svy sdr: total one if agecat==`a' & reldprin<. & sex==`s', over(stcofips) 
+					if _rc mat table=J(9,37,0) // fallback ~ all subpop zero weights.
 					else mat table=r(table)
 					mat table=table'
 					qui tab stcofips, matrow(stcofips)
@@ -485,30 +563,39 @@ prog def tabReldPri
 					mat agecat=J(37,1,`a')
 					mat result=stcofips,sex,reldprin,agecat,table
 					mat master=master\result
+					if `a'==65 { // add total acorss ages
+						nois di "-1." _cont
+						ereturn clear
+						if `s'>0 & `r'>0 qui cap svy: total one if reldprin==`r' & sex==`s', over(stcofips)
+						else if `s'==0 & `r'>0 qui cap svy: total one if reldprin==`r' & sex<., over(stcofips)
+						else if `s'==0 & `r'==0 qui cap svy: total one if reldprin<. & sex<., over(stcofips)
+						else if `s'>0 & `r'==0 qui cap svy: total one if reldprin<. & sex==`s', over(stcofips)
+						if _rc mat table=J(9,37,0) // fallback ~ all subpop zero weights.
+						else mat table=r(table)
+						mat table=table'
+						qui tab stcofips, matrow(stcofips)
+						mat sex=J(37,1,`s')
+						mat reldprin=J(37,1,`r')
+						mat agecat=J(37,1,-1)
+						mat result=stcofips,sex,reldprin,agecat,table
+						mat master=master\result
+					}
 				}
 			}
+			di _newline
+			drop _all
+			svmat master, names(col)
+			lab def reldprin 0 "Total", add
+			label values reldprin reldprin
+			decode reldprin, gen(reldpri)
+			drop reldprin
+			drop if stcofips==.
+			reLabel `1'
+			label var reldpri "REALD Primary Race (<2024 Standard)"
+			append using results/results_agesex_reldpri_`1'.dta
+			save results/results_agesex_reldpri_`1'.dta, replace
+			restore
 		}
-		drop _all
-		svmat master, names(col)
-		label values reldprin reldprin
-		decode reldprin, gen(reldpri)
-		drop reldprin
-		drop if stcofips==.
-		save results/results_agesex_reldpri_`1'.dta, replace
 	}
-	** clean for excel export
-	keep stcofips sex reldpri agecat b
-	reshape wide b, i(stcofips agecat reldpri) j(sex)
-	rename *1 *male
-	rename *2 *female
-	levelsof reldpri, local(levels)
-	reshape wide bmale bfemale, i(stcofips agecat) j(reldpri) string
-	reshape wide bmale* bfemale*, i(stcofips) j(agecat) 
-	order *, seq
-	order stcofips
-	foreach l of local levels {
-		egen b`l'=rowtotal(bfemale`l'* bmale`l'*)
-	}
-	*browse stcofips bAfrAm-bWhiteOth
 end
 *tabReldPri 2020
