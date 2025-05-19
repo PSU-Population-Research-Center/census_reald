@@ -1,3 +1,5 @@
+* v19: add label/metadata for stata data exports and totals; adding langSt loop saves by lang to avoid memory issues.
+* v18: adjusting langSt tables (to identify reason for different totals in tables versus county tables)
 * v17: updating for 2023 ACS (var name change st to state)
 * v16: converting sossplit to generate counts from shares
 * v15: added code for special cases for multnomah and washington counties, per SOS language code.
@@ -385,33 +387,36 @@ prog def topdown42
 	** v03: converted to a program
 	// 
 	// 1. download b16001 data for counties (2016+)
-	forvalues y=2016/`1' {
-		censusapi, url("https://api.census.gov/data/`y'/acs/acs1?get=group(B16001)&for=state:41")
-		cap destring b*, replace ignore("BNnull")
-		qui for var b*: replace X=. if X<0
-		gen int year=`y'
-		if `y'>2016 append using SOS/td_lang42.dta
-		save SOS/td_lang42.dta, replace
-		censusapi, url("https://api.census.gov/data/`y'/acs/acs1?get=group(B16001)&for=county:051&in=state:41")
-		cap destring b*, replace ignore("BNnull")
-		qui for var b*: replace X=. if X<0
-		cap confirm var geo_id
-		if !_rc {
+	args year
+	forvalues y=2016/`year' {
+		if `y'!=2020 { // no acs 1-year for 2020.
+			censusapi, url("https://api.census.gov/data/`y'/acs/acs1?get=group(B16001)&for=state:41")
+			cap destring b*, replace ignore("BNnull")
+			qui for var b*: replace X=. if X<0
 			gen int year=`y'
-			append using SOS/td_lang42.dta
+			if `y'>2016 append using SOS/td_lang42.dta
 			save SOS/td_lang42.dta, replace
-		}
-		censusapi, url("https://api.census.gov/data/`y'/acs/acs1?get=group(B16001)&for=county:067&in=state:41")
-		cap destring b*, replace ignore("BNnull")
-		qui for var b*: replace X=. if X<0
-		cap confirm var geo_id
-		if !_rc {
-			gen int year=`y'
-			append using SOS/td_lang42.dta
-			save SOS/td_lang42.dta, replace
+			censusapi, url("https://api.census.gov/data/`y'/acs/acs1?get=group(B16001)&for=county:051&in=state:41")
+			cap destring b*, replace ignore("BNnull")
+			qui for var b*: replace X=. if X<0
+			cap confirm var geo_id
+			if !_rc {
+				gen int year=`y'
+				append using SOS/td_lang42.dta
+				save SOS/td_lang42.dta, replace
+			}
+			censusapi, url("https://api.census.gov/data/`y'/acs/acs1?get=group(B16001)&for=county:067&in=state:41")
+			cap destring b*, replace ignore("BNnull")
+			qui for var b*: replace X=. if X<0
+			cap confirm var geo_id
+			if !_rc {
+				gen int year=`y'
+				append using SOS/td_lang42.dta
+				save SOS/td_lang42.dta, replace
+			}
 		}
 	}
-	dropmiss
+	dropmiss ,
 	drop if b16001_001e==. // has table, but all null.
 	foreach l in ///
 		"3 spa" "6 fre" "9 hai" "12 ita" "15 por" "18 ger" "21 ywg" "24 grk" "27 rus" "30 pol" ///
@@ -438,13 +443,12 @@ prog def topdown42
 	//
 	// 2. download pums language data by lep for counties (2016-2022 = entire window of new codes)
 	touch SOS/td_pums.dta, replace
-	forvalues y=2016/`1' {
+	forvalues y=2016/`year' {
 		if `y'!=2020 {
 			if inrange(`y',2016,2021) {
 				censusapi, url("https://api.census.gov/data/`y'/acs/acs1/pums?get=ST,AGEP,SEX,LANX,ENG,LANP,PWGTP&for=public%20use%20microdata%20area:01301,01302,01303,01305,01314,01316&in=state:41&key=$ckey") // multco 2010 pumas
 				assert st<. // ensure it worked
-				cap drop publicusemicroda
-				cap drop state
+				for any "v8" "publicusemicroda" "state" "st": cap drop X
 				destring lanp, replace ignore("N")
 				gen int year=`y'
 				gen stcofips="41051"
@@ -452,8 +456,7 @@ prog def topdown42
 				save SOS/td_pums.dta, replace 
 				if inrange(`y',2016,2021) censusapi, url("https://api.census.gov/data/`y'/acs/acs1/pums?get=ST,AGEP,SEX,LANX,ENG,LANP,PWGTP&for=public%20use%20microdata%20area:01320,01321,01322,01323,01324&in=state:41&key=$ckey") // washco 2010 pumas
 				assert st<. // ensure it worked
-				cap drop publicusemicroda
-				cap drop state
+				for any "v8" "publicusemicroda" "state" "st": cap drop X
 				destring lanp, replace ignore("N")
 				gen int year=`y'
 				gen stcofips="41067"
@@ -461,19 +464,19 @@ prog def topdown42
 				save SOS/td_pums.dta, replace 
 			}
 			if inrange(`y',2022,2031) {
-				censusapi, url("https://api.census.gov/data/`y'/acs/acs1/pums?get=ST,AGEP,SEX,LANX,ENG,LANP,PWGTP&for=public%20use%20microdata%20area:05101,05102,05103,05105,05114,05116&in=state:41") // multco 2020 pumas
+				if `y'==2022 local ST="ST"
+				if `y'>=2023 local ST="STATE" 
+				censusapi, url("https://api.census.gov/data/`y'/acs/acs1/pums?get=`ST',AGEP,SEX,LANX,ENG,LANP,PWGTP&for=public%20use%20microdata%20area:05101,05102,05103,05105,05114,05116&in=state:41") // multco 2020 pumas
 				assert st<. // ensure it worked
-				cap drop publicusemicroda
-				cap drop state
+				for any "v8" "publicusemicroda" "state" "st": cap drop X
 				destring lanp, replace ignore("N")
 				gen int year=`y'
 				gen stcofips="41051"
 				append using SOS/td_pums.dta
 				save SOS/td_pums.dta, replace 
-				censusapi, url("https://api.census.gov/data/`y'/acs/acs1/pums?get=ST,AGEP,SEX,LANX,ENG,LANP,PWGTP&for=public%20use%20microdata%20area:06720,06721,06722,06723,06724&in=state:41") // washco 2020 pumas
+				censusapi, url("https://api.census.gov/data/`y'/acs/acs1/pums?get=`ST',AGEP,SEX,LANX,ENG,LANP,PWGTP&for=public%20use%20microdata%20area:06720,06721,06722,06723,06724&in=state:41") // washco 2020 pumas
 				assert st<. // ensure it worked
-				cap drop publicusemicroda
-				cap drop state
+				for any "v8" "publicusemicroda" "state" "st": cap drop X
 				destring lanp, replace ignore("N")
 				gen int year=`y'
 				gen stcofips="41067"
@@ -485,7 +488,7 @@ prog def topdown42
 	//
 	// 3. associate pums languages with b16001 languages (lang42)
 	** each share of langfnl that is a lang42
-	use if lanx==1 & year<=`1' using SOS/td_pums.dta, clear // keep only age 5+ non-English 
+	use if lanx==1 & year<=`year' using SOS/td_pums.dta, clear // keep only age 5+ non-English 
 	destring lanp, replace ignore("N")
 	keep if inrange(lanp,1000,9999) // keep persons with a language other than english
 	gen lep=.
@@ -508,15 +511,15 @@ prog def topdown42
 	egen chk=rowtotal(shr*)
 	assert inrange(chk,.99,1.01) // fails w/o overrides
 	drop chk
-	save SOS/td_pums_`1'.dta, replace 
+	save SOS/td_pums_`year'.dta, replace 
 	//
 	// 4. calculate implied speakers per pums language from the lang42 table
 	** load lang42 table
-	use if stcofips!="41" & year<=`1' using SOS/td_lang42.dta, clear // all years combined up to the present
+	use if stcofips!="41" & year<=`year' using SOS/td_lang42.dta, clear // all years combined up to the present
 	collapse (mean) n, by(stcofips langc42 lep) // average
-	gen int year=`1' 
-	merge 1:1 stcofips langc42 lep using SOS/td_pums_`1'.dta, keep(1 3) assert(1 3) keepus(shr*) nogen // _m==1 for statewide
-	rm SOS/td_pums_`1'.dta // no longer needed
+	gen int year=`year' 
+	merge 1:1 stcofips langc42 lep using SOS/td_pums_`year'.dta, keep(1 3) assert(1 3) keepus(shr*) nogen // _m==1 for statewide
+	rm SOS/td_pums_`year'.dta // no longer needed
 	for num 1/103: gen nX=n*shrX \\ drop shrX
 	drop n
 	reshape long n@, i(stcofips year lep langc42) j(langfnl) 
@@ -526,8 +529,8 @@ prog def topdown42
 	** export table
 	gsort stcofips lep -n
 	by stcofips lep: gen rank=_n
-	local y=substr("`1'",3,2)
-	duplicates drop
+	local y=substr("`year'",3,2)
+	duplicates drop stcofips lep langfnl n, force
 	subsave stcofips lep langfnl n using SOS/sos_lang42_topdown_5acs`y'.dta, replace
 	** incorporate into OHA analysis
 	** merge controls and add rake step for counts by langfnl for multnomah and washington counties
@@ -739,6 +742,46 @@ prog def langFile
 end
 *langFile 2019
 
+// labels/metadata
+cap prog drop laLabel
+prog def laLabel
+	gen int year=`1'
+	label var year "last year of 5ACS`1' sample"
+	cap label var stcofips "FIPS code (2-digit State + 3-digit County)"
+	cap label var stfips "FIPS code (2-digit State)"
+	label var sex "Sex (0=Total 1=Male 2=Female)"
+	lab def SEX 0 "Total" 1 "Male" 2 "Female", replace
+	label values sex SEX
+	recast byte sex
+	label var b "Estimate"
+	format b %9.0g
+	label var se "Standard Error"
+	format se %7.4g
+	label var p "p-value of hypothesis: b not equal to 0"
+	format p %4.3f
+	label var ll "90% CI: lower value"
+	replace ll=max(0,ll)
+	format ll %7.0f
+	label var ul "90% CI: upper value"
+	format ul %7.0f
+	drop z df crit eform
+	gen rse=se/b
+	format rse %3.2f
+	label var rse "Relative Standard Error (RSE=se/b)"
+	replace rse=round(rse,.01)
+	recode rse (0/.299=1) (.3/.499=2) (.5/.=3), gen(flag)
+	label var flag "RSE-derived reliability flag (0 reliable; >.3 unreliable; >.5 highly unreliable)"
+	lab def FLAG 1 "Reliable" 2 "Unreliable" 3 "Highly Unreliable"
+	label values flag FLAG
+	assert flag<.
+	// language-specific commands used in all exports
+	lab def LEP -1 "Total" 0 "Not LEP" 1 "Speaks English Less than Very Well (LEP)"
+	label values lep LEP
+	label var lep "Limited English Proficiency (LEP) Status (0=No 1=Yes)"
+	label values lang langoha
+	label var lang "Detailed Language Spoken at Home (Modified ISO 639-2)"
+end
+
 // tables by langoha (subset of langfnl, for languages in any county's top10 total or by lep) 
 cap prog drop tablang
 prog def tablang
@@ -756,7 +799,7 @@ prog def tablang
 	labmask langoha, values(langtmp) // matrices can only store numeric
 	** init table storage
 	mat master=J(1,14,.)
-	mat colnames master="stcofips" "sex" "langoha" "lep" "agec3" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+	mat colnames master="stcofips" "sex" "langoha" "lep" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
 	** rectangularize (to ensure 37 rows for each svy total results matrix)
 	sort stcofips agec3 langoha lep
 	fillin stcofips agec3 langoha lep
@@ -764,120 +807,189 @@ prog def tablang
 	drop _fillin
 	** aggregate matrices (lang*lep*agecat)
 	gen byte one=1 
-	levelsof agec3, local(ages)
+	gen agecat=substr(agec3,1,2)
+	destring agecat, replace
+	levelsof agecat if agecat<., local(ages)
 	assert `r(r)'==3 // check only 3 unique values
 	levelsof langoha, local(ls)
 	qui foreach l of local ls {
 		local label: label langoha `l'
 		nois di _newline ". Language: `l' (`label') | Age/LEP: " _cont
-		forvalues e=0/1 {
+		forvalues e=-1/1 {
 			foreach a of local ages {
 				nois di "`a'/`e' " _cont
-				if "`a'"=="0004" | (`e'==1 & "`label'"=="eng") { // no languages for age 0-4 and no LEP for english
+				if `a'==0 | (`e'==1 & "`label'"=="eng") { // no languages for age 0-4 and no LEP for english
 					mat table=J(37,9,0)
 				}
 				else {
-					cap svy sdr: total one if agec3=="`a'" & lep==`e' & langoha==`l', over(stcofips) 
-					if !_rc mat table=r(table)'
-					else if _rc==461 { // if subpopulation is zero ~ check to confirm
-						nois di " >> zero! >> " _cont
-						mat table=J(37,9,0) 
+					if `e'>=0 {
+						cap svy sdr: total one if agecat==`a' & lep==`e' & langoha==`l', over(stcofips) 
+						if !_rc mat table=r(table)'
+						else if _rc==461 { // if subpopulation is zero ~ check to confirm
+							nois di " >> zero! >> " _cont
+							mat table=J(37,9,0) 
+						}
+					}
+					else if `e'==-1 {
+						cap svy sdr: total one if agecat==`a' & lep<. & langoha==`l', over(stcofips) 
+						if !_rc mat table=r(table)'
+						else if _rc==461 { // if subpopulation is zero ~ check to confirm
+							nois di " >> zero! >> " _cont
+							mat table=J(37,9,0) 
+						}
 					}
 				}
 				qui tab stcofips, matrow(stcofips)
 				mat sex=J(37,1,0)
 				mat lang=J(37,1,`l')
 				mat lep=J(37,1,`e')
-				mat agec3=J(37,1,`a')
-				mat result=stcofips,sex,lang,lep,agec3,table
+				mat agecat=J(37,1,`a')
+				mat result=stcofips,sex,lang,lep,agecat,table
 				mat master=master\result
+				if `a'==65 {
+					nois di "-1/`e' " _cont
+					if `e'>=0 {
+						cap svy sdr: total one if agecat<. & lep==`e' & langoha==`l', over(stcofips) 
+						if !_rc mat table=r(table)'
+						else if _rc==461 { // if subpopulation is zero ~ check to confirm
+							nois di " >> zero! >> " _cont
+							mat table=J(37,9,0) 
+						}
+					}
+					else if `e'==-1 {
+						cap svy sdr: total one if agecat<. & lep<. & langoha==`l', over(stcofips) 
+						if !_rc mat table=r(table)'
+						else if _rc==461 { // if subpopulation is zero ~ check to confirm
+							nois di " >> zero! >> " _cont
+							mat table=J(37,9,0) 
+						}
+					}
+					qui tab stcofips, matrow(stcofips)
+					mat sex=J(37,1,0)
+					mat lang=J(37,1,`l')
+					mat lep=J(37,1,`e')
+					mat agecat=J(37,1,-1)
+					mat result=stcofips,sex,lang,lep,agecat,table
+					mat master=master\result
+				}
 			}
 		}
 	}
 	** replace data with stored matrices
 	drop _all
 	svmat master, names(col)
-	label values lang langoha
 	drop if stcofips==.
+	laLabel `1'
+	lab def AGEC3 -1 "Total" 0 "0-18" 18 "19-64" 65 "65+", replace
+	lab values agecat AGEC3
+	label var agecat "Broad Age Group (-1=Total; 0-18 19-64 65+)"
+	recast byte agecat
+	ren agecat agecat3
 	save results/results_lang_`1'.dta, replace
-	** clean for excel export
-	collapse (sum) b, by(stcofips lang lep agec3)
-	reshape wide b, i(stcofips agec3 lep ) j(lang)
-	rename b* lang*_
-	reshape wide lang*_, i(stcofips agec3) j(lep)
-	rename lang*_* lang*_*_	
-	reshape wide lang*_, i(stcofips) j(agec3)
-	order *, seq
-	order stcofips
-	*for var lang*: replace X=round(X,.01) // by default, results are not rounded
 end
 *tablang 2021
 
 // oha state tabulation for languages (by agec11)
+// tables by langoha (subset of langfnl, for languages in any county's top10 total or by lep) 
 cap prog drop tablangSt
 prog def tablangSt
 	local y=substr("`1'",3,2)
 	use 5ACS`y'_ORWA_RELDPRI_lang.dta, clear
-	** add language categories for use by oha: lang42 + english + ukrainian out of other slavic
+	keep if substr(string(stcofips),1,2)=="41"
+	** roll up language categories for use by oha
 	gen langtmp=langc42
 	replace langtmp="ukr" if langfnl==18 // make ukrainian distinct
 	encode langtmp, gen(langoha)
 	labmask langoha, values(langtmp) // matrices can only store numeric
-	** init table storage
-	mat master=J(1,14,.)
-	mat colnames master="stcofips" "sex" "langoha" "lep" "agec11" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
-	** rectangularize (to ensure 37 rows for each svy total results matrix)
-	sort stcofips agec11 langoha lep
-	fillin stcofips agec11 langoha lep
-	qui for var pwt3 pwgtp1-pwgtp80: replace X=0 if X==. 
-	drop _fillin
-	** aggregate matrices (lang*lep*agecat)
+	** prep for runs 
 	gen byte one=1 
-	levelsof agec11, local(ages)
+	gen agecat=substr(agec11,1,2)
+	destring agecat, replace
+	levelsof agecat, local(ages)
+	assert `r(r)'==11 // check only N unique values
 	levelsof langoha, local(ls)
+	** init empty file
+	touch results/results_langst_`1'.dta, replace
 	qui foreach l of local ls {
 		local label: label langoha `l'
 		nois di _newline ". Language: `l' (`label') | Age/LEP: " _cont
-		forvalues e=0/1 {
+		cap restore, not
+		preserve
+		** init table storage
+		mat master=J(1,14,.)
+		mat colnames master="stfips" "sex" "langoha" "lep" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+		forvalues e=-1/1 {
 			foreach a of local ages {
 				nois di "`a'/`e' " _cont
-				if "`a'"=="0004" | (`e'==1 & "`label'"=="eng") { // no languages for age 0-4 and no LEP for english
+				if `a'==0 | (`e'==1 & "`label'"=="eng") { // no languages for age 0-4 and no LEP for english
 					mat table=J(1,9,0)
 				}
 				else {
-					cap svy sdr: total one if agec11=="`a'" & lep==`e' & langoha==`l' & substr(strofreal(stcofips),1,2)=="41"
-					if !_rc mat table=r(table)'
-					else if _rc==461 { // if subpopulation is zero ~ check to confirm
-						nois di " >> zero! >> " _cont
-						mat table=J(1,9,0) 
+					if `e'>=0 {
+						cap svy sdr: total one if agecat==`a' & lep==`e' & langoha==`l'
+						if !_rc mat table=r(table)'
+						else if _rc==461 { // if subpopulation is zero ~ check to confirm
+							nois di " >> zero! >> " _cont
+							mat table=J(1,9,0) 
+						}
+					}
+					else if `e'==-1 {
+						cap svy sdr: total one if agecat==`a' & lep<. & langoha==`l'
+						if !_rc mat table=r(table)'
+						else if _rc==461 { // if subpopulation is zero ~ check to confirm
+							nois di " >> zero! >> " _cont
+							mat table=J(1,9,0) 
+						}
 					}
 				}
-				mat stcofips=J(1,1,41) // state only
-				mat sex=J(1,1,0) // 0=both sexes combined
+				mat stfips=J(1,1,41)
+				mat sex=J(1,1,0)
 				mat lang=J(1,1,`l')
 				mat lep=J(1,1,`e')
-				mat agec11=J(1,1,`a')
-				mat result=stcofips,sex,lang,lep,agec11,table
+				mat agecat=J(1,1,`a')
+				mat result=stfips,sex,lang,lep,agecat,table
 				mat master=master\result
+				if `a'==65 {
+					nois di "-1/`e' " _cont
+					if `e'>=0 {
+						cap svy sdr: total one if agecat<. & lep==`e' & langoha==`l'
+						if !_rc mat table=r(table)'
+						else if _rc==461 { // if subpopulation is zero ~ check to confirm
+							nois di " >> zero! >> " _cont
+							mat table=J(1,9,0) 
+						}
+					}
+					else if `e'==-1 {
+						cap svy sdr: total one if agecat<. & lep<. & langoha==`l'
+						if !_rc mat table=r(table)'
+						else if _rc==461 { // if subpopulation is zero ~ check to confirm
+							nois di " >> zero! >> " _cont
+							mat table=J(1,9,0) 
+						}
+					}
+					mat stfips=J(1,1,41)
+					mat sex=J(1,1,0)
+					mat lang=J(1,1,`l')
+					mat lep=J(1,1,`e')
+					mat agecat=J(1,1,-1)
+					mat result=stfips,sex,lang,lep,agecat,table
+					mat master=master\result
+				}
 			}
 		}
+		** replace data with stored matrices (iterate per language)
+		drop _all
+		svmat master, names(col)
+		drop if stfips==.
+		laLabel `1'
+		lab def AGEC11 -1 "Total" 0 "0-4" 5 "5-14" 15 "15-17" 18 "18-19" 20 "20-24" 25 "25-29" 30 "30-39" 40 "40-49" 50 "50-59" 60 "60-64" 65 "65+", replace
+		label values agecat AGEC11
+		label var agecat "Age Group (-1=Total; 0-4 5-14 15-17 18-19 20-24 25-29 30-39 40-49 50-59 60-64 65+)"
+		cap recast byte agecat
+		append using results/results_langst_`1'.dta
+		save results/results_langst_`1'.dta, replace
+		restore
 	}
-	** replace data with stored matrices
-	drop _all
-	svmat master, names(col)
-	label values lang langoha
-	drop if stcofips==.
-	save results/results_langst_`1'.dta, replace
-	** clean for excel export
-	collapse (sum) b, by(stcofips lang lep agec11)
-	reshape wide b, i(stcofips agec11 lep) j(lang)
-	rename b* lang*_
-	reshape wide lang*_, i(stcofips agec11) j(lep)
-	rename lang*_* lang*_*_	
-	reshape wide lang*_, i(stcofips) j(agec11)
-	order *, seq
-	order stcofips
-	*for var lang*: replace X=round(X,.01) // by default, results are not rounded
 end
 *tablangSt 2021
 
