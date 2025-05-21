@@ -353,7 +353,7 @@ prog def fillReport
 	** suppression
 	if "`2'"=="suppress" {
 		foreach l of local langs {
-			foreach a in "0" "19" "65" "99" {
+			foreach a in "5" "19" "65" "99" {
 				foreach v in "0" "1" "99" {
 					replace b`a'_`v'`l'=. if flag`a'_`v'`l'>=3
 				}
@@ -361,12 +361,12 @@ prog def fillReport
 		}
 		putexcel set "`fname'_sup.xlsx", modify sheet("L") // L
 		doPutHead `1' `lastrun'
-		export excel C99_99* total using "`fname'_sup.xlsx", cell(C9) sheet("L") firstrow(var) sheetmodify keepcellfmt
+		export excel b99_99* total using "`fname'_sup.xlsx", cell(C9) sheet("L") firstrow(var) sheetmodify keepcellfmt
 		putexcel set "`fname'_sup.xlsx", modify sheet("LEP") // LEP
 		doPutHead `1' `lastrun'
-		export excel C99_1* leptot using "`fname'_sup.xlsx", cell(C9) sheet("LEP") firstrow(var) sheetmodify keepcellfmt
+		export excel b99_1* leptot using "`fname'_sup.xlsx", cell(C9) sheet("LEP") firstrow(var) sheetmodify keepcellfmt
 		preserve
-		drop C99_* // drop totals by age
+		drop b99_* // drop totals by age
 		putexcel set "`fname'_sup.xlsx", modify sheet("L_A") // LA
 		doPutHead `1' `lastrun'
 		export excel b*99afa b*99ara b*99arm b*99ben b*99chn b*99eng b*99fre b*99ger b*99gre b*99guj b*99hat b*99hbs b*99heb b*99hin b*99hmn b*99ita ///
