@@ -1,3 +1,4 @@
+* v20: expand top 10 list to top 11 (for verifiability); fix table 3 to automate age breakdowns
 * v19: add label/metadata for stata data exports and totals; adding langSt loop saves by lang to avoid memory issues.
 * v18: adjusting langSt tables (to identify reason for different totals in tables versus county tables)
 * v17: updating for 2023 ACS (var name change st to state)
@@ -998,90 +999,92 @@ cap prog drop sosTable
 prog define sosTable
 	local year=`1'
 	local y=substr("`year'",3,2)
-	use 5ACS`y'_ORWA_RELDPRI_lang.dta, clear
-	keep if agep>=5
-	replace langfnl=0 if agep>=5 & lanx==2 // English-only
-	keep pwt3 langfnl lep stcofips
-	label define langfnl 0 "English", add
-	collapse (sum) pwt3, by(stcofips langfnl lep)
-	reshape wide pwt3, i(stcofips langfnl) j(lep)
-	for var pwt30 pwt31: replace X=0 if X==. // missing -> 0
-	replace pwt30=pwt30+pwt31 // add not lep + lep
-	ren pwt30 total_`year'
-	ren pwt31 lep_`year'
-	save SOS/lang_table_`year'.dta, replace
-	// special adjustments
-	** tbd
-	// add OR state total
-	keep if substr(strofreal(stcofips),1,2)=="41"
-	collapse (sum) total* lep*, by(langfnl)
-	gen stcofips=41
-	append using SOS/lang_table_`year'.dta 
-	for var total* lep*: assert X<.
-	order stcofips langfnl total* lep*
-	for var "total_`year'" "lep_`year'": format X %7.0f
-	// drop English or Eng Creole
-	drop if langfnl==0 | langfnl==1
-	// check no 0 spanish totals (affected Gilliam 5ACS21)
-	assert total_`year'>0 if langfnl==11
-	// change labels for Persian, Pashto, Chinese, Lao, Burmese, Khmer, Tagalog
-	lab def langfnl 21 "Bulgarian", modify
-	lab def langfnl 23 "Lithuanian/Latvian", modify // drop 'Lettish'
-	lab def langfnl 25 "Persian", modify
-	lab def langfnl 27 "Pashto", modify
-	lab def langfnl 48 "Chinese", modify
-	lab def langfnl 50 "Myanma", modify
-	lab def langfnl 58 "Lao", modify
-	lab def langfnl 59 "Khmer", modify
-	lab def langfnl 61 "Indonesian", modify
-	lab def langfnl 63 "Tagalog", modify
-	lab def langfnl 22 "Serbo-Croatian", modify // Serbian/Croatian/Bosnian
-	lab def langfnl 97 "Siouan", modify // Dakota/Lakota/Nakota/Siouan
-	lab def langfnl 99 "Cherokee", modify 
-	lab def langfnl 100 "Algonquin", modify 
-	lab def langfnl 102 "Central/SA", modify // Other Central/South American
-	// imputation of AIAN languages to associated tribal areas in OR
-	*replace langfnl=203 if langfnl==101 & inlist(stcofips,41059,41031,41065) // "UMATILLA","WASCO","JEFFERSON"
-	*lab def langfnl 203 "Sahaptin", add modify
-	// drop groups
-	drop if inlist(langfnl,36,37,62,66,73,82,87,88,93,102,103) // drop broad language groups ~ unrankable and unidentifiable ~ except "Other AIAN"
-	// bin languages by N speakers 
-	for var "total_`year'" "lep_`year'": recode X (0/99.999=.) (100/299.999=1 "100-299") (300/499.999=2 "300-499") (500/.=3 "500+"), gen(X_bin)
-	// flag largest N for counties without 100+ lep
-	foreach x in "total" "lep" {
-		egen chk=max(`x'_`year'), by(stcofips)
-		egen minlang=max(`x'_`year') if chk<100, by(stcofips)
-		drop chk
-		replace `x'_`year'_bin=0 if `x'_`year'==minlang
-		lab def `x'_`year'_bin 0 "<100", modify
-		drop minlang
-		// ranking
-		gsort stcofips -`x'_`year'_bin -`x'_`year' 
-		by stcofips: gen `x'_rank=_n
-	}
-	save SOS/lang_table_`year'.dta, replace
-	// new table 1+2 design: OR state + county TOP 10 non-English by N of speakers THEN LEP speakers 
-	foreach p in "total" "lep" {
-		preserve
-		keep if inrange(`p'_rank,1,10) & (`p'_rank==1 | `p'_`year'>=100) // suppression
-		decode langfnl, gen(langs)
-		compress
-		replace langs=langs+"|"+strofreal(`p'_`year',"%7.0fc")
-		keep stcofips langs `p'_rank
-		reshape wide langs, i(stcofips) j(`p'_rank)
-		egen list=concat(lang*), punct("|")
-		drop langs*
-		pause on
-		browse
-		pause
-		restore
-	}
-	// new table 3 design: OR state + counties BINS non-English by 100s of speakers THEN LEP speakers
-	// plus OHA request for tables by agec3 (5-18, 19-64, 65+)
-	foreach p in "total" "lep" {
-		foreach a in "" "0518" "1964" "6599" { 
+	foreach a in "" "0518" "1964" "6599" { 
+		use 5ACS`y'_ORWA_RELDPRI_lang.dta, clear
+		if "`a'"!="" keep if inrange(agep,real(substr("`a'",1,2)),real(substr("`a'",3,2))) // implement age filter (for table 3)
+		keep if agep>=5
+		replace langfnl=0 if agep>=5 & lanx==2 // English-only
+		keep pwt3 langfnl lep stcofips
+		label define langfnl 0 "English", add
+		collapse (sum) pwt3, by(stcofips langfnl lep)
+		reshape wide pwt3, i(stcofips langfnl) j(lep)
+		for var pwt30 pwt31: replace X=0 if X==. // missing -> 0
+		replace pwt30=pwt30+pwt31 // add not lep + lep
+		ren pwt30 total_`year'
+		ren pwt31 lep_`year'
+		save SOS/lang_table_`year'.dta, replace
+		// special adjustments
+		** tbd
+		// add OR state total
+		keep if substr(strofreal(stcofips),1,2)=="41"
+		collapse (sum) total* lep*, by(langfnl)
+		gen stcofips=41
+		append using SOS/lang_table_`year'.dta 
+		for var total* lep*: assert X<.
+		order stcofips langfnl total* lep*
+		for var "total_`year'" "lep_`year'": format X %7.0f
+		// drop English or Eng Creole
+		drop if langfnl==0 | langfnl==1
+		// check no 0 spanish totals (affected Gilliam 5ACS21)
+		assert total_`year'>0 if langfnl==11
+		// change labels for Persian, Pashto, Chinese, Lao, Burmese, Khmer, Tagalog
+		lab def langfnl 21 "Bulgarian", modify
+		lab def langfnl 23 "Lithuanian/Latvian", modify // drop 'Lettish'
+		lab def langfnl 25 "Persian", modify
+		lab def langfnl 27 "Pashto", modify
+		lab def langfnl 48 "Chinese", modify
+		lab def langfnl 50 "Myanma", modify
+		lab def langfnl 58 "Lao", modify
+		lab def langfnl 59 "Khmer", modify
+		lab def langfnl 61 "Indonesian", modify
+		lab def langfnl 63 "Tagalog", modify
+		lab def langfnl 22 "Serbo-Croatian", modify // Serbian/Croatian/Bosnian
+		lab def langfnl 97 "Siouan", modify // Dakota/Lakota/Nakota/Siouan
+		lab def langfnl 99 "Cherokee", modify 
+		lab def langfnl 100 "Algonquin", modify 
+		lab def langfnl 102 "Central/SA", modify // Other Central/South American
+		// imputation of AIAN languages to associated tribal areas in OR
+		*replace langfnl=203 if langfnl==101 & inlist(stcofips,41059,41031,41065) // "UMATILLA","WASCO","JEFFERSON"
+		*lab def langfnl 203 "Sahaptin", add modify
+		// drop groups
+		drop if inlist(langfnl,36,37,62,66,73,82,87,88,93,102,103) // drop broad language groups ~ unrankable and unidentifiable ~ except "Other AIAN"
+		// bin languages by N speakers 
+		for var "total_`year'" "lep_`year'": recode X (0/99.999=.) (100/299.999=1 "100-299") (300/499.999=2 "300-499") (500/.=3 "500+"), gen(X_bin)
+		// flag largest N for counties without 100+ lep
+		foreach x in "total" "lep" {
+			egen chk=max(`x'_`year'), by(stcofips)
+			egen minlang=max(`x'_`year') if chk<100, by(stcofips)
+			drop chk
+			replace `x'_`year'_bin=0 if `x'_`year'==minlang
+			lab def `x'_`year'_bin 0 "<100", modify
+			drop minlang
+			// ranking
+			gsort stcofips -`x'_`year'_bin -`x'_`year' 
+			by stcofips: gen `x'_rank=_n
+		}
+		if "`a'"=="" {
+			save SOS/lang_table_`year'.dta, replace
+			// new table 1+2 design: OR state + county TOP 10 non-English by N of speakers THEN LEP speakers 
+			foreach p in "total" "lep" {
+				preserve
+				keep if inrange(`p'_rank,1,11) & (`p'_rank==1 | `p'_`year'>=100) // suppression
+				decode langfnl, gen(langs)
+				compress
+				replace langs=langs+"|"+strofreal(`p'_`year',"%7.0fc")
+				keep stcofips langs `p'_rank
+				reshape wide langs, i(stcofips) j(`p'_rank)
+				egen list=concat(lang*), punct("|")
+				drop langs*
+				pause on
+				browse
+				pause
+				restore
+			} // end table 1+2 loop
+		} // end check if all ages
+		// new table 3 design: OR state + counties BINS non-English by 100s of speakers THEN LEP speakers
+		// plus OHA request for tables by age group (5-18, 19-64, 65+)
+		foreach p in "total" "lep" {
 			preserve
-			if "`a'"!="" keep if agec3=="`a'"
 			keep stcofips langfnl `p'_* 
 			ren `p'_`year'_bin bin
 			ren `p'_`year' `p'
@@ -1119,12 +1122,12 @@ prog define sosTable
 			drop listme*
 			qui for var langs*: replace X="|" if X==""
 			drop if langs_100_299=="|"&langs_300_499=="|"&langs_500=="|"&stcofips>1
-			if "`a'"!="" nois di "Ages: `a'"
+			if "`a'"!="" nois di "Ages: `a'; `p'"
 			browse
 			pause
 			restore
-		}
-	}
+		} // end table 3 loop
+	} // end age loop
 end
 *sosTable 2019
 
@@ -1184,11 +1187,11 @@ prog def sosSplit
 	pause
 	// now, merge N speakers and tabulate (Farsi share then Dari remainder; Simplified share then Trad remainder)
 	use stcofips langfnl pw* if inlist(langfnl,25,48) using 5ACS`y'_ORWA_RELDPRI_lang.dta, clear
-	tostring stcofips, replace
+	destring stcofips, replace
 	gen byte one=1
-	svy sdr: total one if langfnl==25, over(stcofips) 
+	svy sdr: total one if langfnl==25, over(stcofips)  // persian
 	svy sdr: total one if langfnl==25 & substr(strofreal(stcofips),1,2)=="41"
-	svy sdr: total one if langfnl==48, over(stcofips) 
+	svy sdr: total one if langfnl==48, over(stcofips) // chinese
 	svy sdr: total one if langfnl==48 & substr(strofreal(stcofips),1,2)=="41"
 end
 *sosSplit 2019

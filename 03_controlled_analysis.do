@@ -21,6 +21,7 @@
 	- TBD: consider adding 06-10 PUMS for small counties only to inflate representation of rare conditions (especially languages)
 	- TBD: roll up detailed state tabulations (age groups 0-14, 15-17, 18-19, 20(5)30, 30(10)60, 60+) into county broad ages (5-17, 18-64, 65+)
 changelog:
+	v17: load new language (v20) and report routines (v04).
 	v16: updated associated dofiles to add Stata metadata; added report code to output csv.
 	~ timestamp for deliverables from 2025-05-01
 	v15: proportional weighting of SE, and call PUMS prep from this dofile.
@@ -91,10 +92,10 @@ foreach p in "survwgt" "censusapi" "hotdeckvar" "randomtag" {
 do 01_prep_pums_v04.do // add subroutines to memory
 do 03a_raceeth_v17.do // add subroutines to memory
 do 03b_disab_v14.do // add subroutines to memory
-do 03c_language_v19.do // add subroutines to memory
-do 04_report_v03.do // subroutines for Excel final report
+do 03c_language_v20.do // add subroutines to memory
+do 04_report_v04.do // subroutines for Excel final report
 
-forvalues y=2020/2021 {
+forvalues y=2019/2023 {
 
 // prep PUMS
 *preppums `y' // combine WA/OR and rename
@@ -105,29 +106,29 @@ forvalues y=2020/2021 {
 *reControls `y' // download control totals
 *reFile `y' // generate raked microdata
 *chkTotal `y' // compare totals
-tabAgeSex `y' // export results by age/sex
-tabReldRR `y' // export results by omb rarest race
-tabReldPri `y' // export totals by reald primary race
+*tabAgeSex `y' // export results by age/sex
+*tabReldRR `y' // export results by omb rarest race
+*tabReldPri `y' // export totals by reald primary race
 
 // disability
 *disabyControls `y' // download control totals
 *disabyFile `y' // generate raked microdata
-tabdisdi `y' // tables by any disability
-tabda4 `y' // tabulate by 4-way classification
-tabda7 `y' // tabulate by 7-way classification
-tabdaoic `y' // tables by specific disabilities, AOIC
+*tabdisdi `y' // tables by any disability
+*tabda4 `y' // tabulate by 4-way classification
+*tabda7 `y' // tabulate by 7-way classification
+*tabdaoic `y' // tables by specific disabilities, AOIC
 
 // languages
 *langControls `y' // download control totals
 *topdown42 `y' // perform SOS adjustments 
 *langFile `y' // generate raked microdata
 *donorLang `y' // generate donor observation dataset 
-tablang `y' // export county tables w/SE (broad age groups)
-tablangSt `y' // export state table w/SE (detailed age groups)
+*tablang `y' // export county tables w/SE (broad age groups)
+*tablangSt `y' // export state table w/SE (detailed age groups)
 *sosTable `y' // copy-paste into Excel
 *sosSplit `y' // copy-paste into Excel
 
 // reports
-if `y'==2023 fillReport `y' // load results, export to Excel (suppress option adds suppression)
+*if `y'==2023 fillReport `y' suppress // load results, export to Excel (suppress option adds suppression)
 
 }
