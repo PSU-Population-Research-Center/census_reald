@@ -1,0 +1,65 @@
+            01     .White alone
+            02     .Black or African American alone
+            03     .Apache alone
+            04     .Blackfeet alone
+            05     .Cherokee alone
+            07     .Chickasaw alone
+            08     .Chippewa alone
+            09     .Choctaw alone
+            11     .Creek alone
+            12     .Crow alone
+            13     .Hopi alone
+            14     .Iroquois alone
+            15     .Lumbee alone
+            16     .Mexican American Indian alone
+            17     .Navajo alone
+            18     .Pima alone
+            19     .Potawatomi alone
+            20     .Pueblo alone
+            21     .Puget Sound Salish alone
+            23     .Sioux alone
+            24     .South American Indian alone
+            25     .Tohono O'Odham alone
+            26     .Yaqui alone
+            27     .Other specified American Indian tribes alone
+            28     .All other specified American Indian tribe combinations
+            29     .American Indian, tribe not specified
+            30     .Alaskan Athabascan alone
+            31     .Tlingit-Haida alone
+            32     .Inupiat alone
+            33     .Yup'ik alone
+            34     .Aleut alone
+            35     .Other Alaska Native
+            36     .Other American Indian and Alaska Native specified
+            37     .American Indian and Alaska Native, not specified
+            38     .Asian Indian alone
+            39     .Bangladeshi alone
+            40     .Bhutanese alone
+            41     .Burmese alone
+            42     .Cambodian alone
+            43     .Chinese, except Taiwanese, alone
+            44     .Taiwanese alone
+            45     .Filipino alone
+            46     .Hmong alone
+            47     .Indonesian alone
+            48     .Japanese alone
+            49     .Korean alone
+            50     .Laotian alone
+            51     .Malaysian alone
+            52     .Mongolian alone
+            53     .Nepalese alone
+            54     .Pakistani alone
+            55     .Sri Lankan alone
+            56     .Thai alone
+            57     .Vietnamese alone
+            58     .Other Asian alone
+            59     .All combinations of Asian races only
+            60     .Native Hawaiian alone
+            61     .Samoan alone
+            62     .Tongan alone
+            63     .Chamorro alone
+            64     .Marshallese alone
+            65     .Fijian alone
+            66     .Other Native Hawaiian and Other Pacific Islander
+            67     .Some Other Race alone
+            68     .Two or More Races
