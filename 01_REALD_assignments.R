@@ -1,13 +1,14 @@
 ###### ================================================= ########
 # - Portland State PRC script for assigning Primary REALD identities
 # - Reads in the 2024 ACS PUMS using the censusapi package
-# and reads in associated metadata files from subdir `global_inputs`.
-# - Exports a single csv with the PRIMARY reald assignment.
+# and reads in associated metadata files from subdir `acs`.
+# - Exports a single csv with the PRIMARY reald assignment
+# into the ROOT of the directory.
 # (Namespace does include a data frame with all reald assignments for each PUMS
 # record but does not export)
 # - Does not do Jewish identity assignment (code for this is commented out)
 # - Contact: Scott Nordstrom scottn@pdx.edu
-# - Date finalized: 2 June 2026
+# - Date finalized: 18 June 2026
 
 # Packages
 library(censusapi)
@@ -26,18 +27,37 @@ rm(list = ls())
 ### Read in PUMS (if it does not already exist) and do some formatting
 
 if (!exists('pums_raw')) {
-  pums_raw = getCensus(
-    name = "acs/acs5/pums",
-    vintage = "2024",
-    vars = c(
-      "RT", "SERIALNO", "SPORDER", "PUMA", "PWGTP", "SEX", "AGEP", "HISP",
-      "POBP", "WAOB", "ANC1P", "ANC2P", "RAC1P", "RAC2P19", "RAC2P24", "RAC3P", 
-      "RACAIAN","RACASN","RACBLK","RACNH","RACNUM","RACPI","RACSOR","RACWHT",
-      "ENG","LANX","LANP"
-    ),
-    region = "state:41",
-  ) |>
-    # Change names to lowercase (for convenience)
+  # Reading in data for OR and Clark County WA separately using purrr
+  pums_raw = map2(
+    # region argument
+      .x = list(
+        "state:41", # oregon
+        "public use microdata area:21101,21102,21103,21104" # clark county
+      ),
+      # regionin argument
+      .y = list(
+        NULL, # empty (for oregon, statewide)
+        "state:53" # washington (for clark county)
+      ),
+      # Wrapper function to feed geographic specifications
+      # into getCensus
+      \(x, y) getCensus(
+        name = "acs/acs5/pums",
+        vintage = "2024",
+        vars = c(
+          "RT", "SERIALNO", "SPORDER", "PUMA", "PWGTP", "SEX", "AGEP", "HISP",
+          "POBP", "WAOB", "ANC1P", "ANC2P", "RAC1P", "RAC2P19", "RAC2P24", "RAC3P", 
+          "RACAIAN","RACASN","RACBLK","RACNH","RACNUM","RACPI","RACSOR","RACWHT",
+          "ENG","LANX","LANP"
+        ),
+        region = x,
+        regionin = y
+      ) |>
+        # (by default the )
+        select(matches('^[A-Z]', ignore.case = FALSE))
+    ) |>
+    list_rbind() |>
+    # Change names to lowercase (for regex convenience)
     rename_with(tolower) |>
     # Select only relevant columns
     select(
@@ -1055,43 +1075,43 @@ pums_rarest = pums_rarest |>
 ###### ================================================= ########
 # Export final products
 
-if (!dir.exists('results/reald_assignments')) dir.create('results/reald_assignments')
+# if (!dir.exists('results/reald_assignments')) dir.create('results/reald_assignments')
 
 # Export PUMS key with primary
 write.csv(
   # Export only the serial number/identifying info and the primary REALD
   pums_rarest |> select(serialno, sporder, realdpri = primary), row.names = FALSE,
-  'results/reald_assignments/acs_realdpri_2024_5yr.csv'
+  'acs_realdpri_2024_5yr.csv'
 )
 
-# Export statewide counts of both *primary* assignments and any assignment:
-
-# First get total counts:
-total_counts = pums_out |>
-  select(
-    pwgtp, 
-    starts_with(c('MENA', 'Wht', 'Asn', 'Afr', 'Lat', 'AIAN', 'NHPI', 'Other'))
-  ) |>
-  # Get sums (number of people) identifying as each group
-  mutate(across(where(is.logical), ~ pwgtp * .)) |>
-  # Remove person weight colum (population total) because it isn't needed
-  select(-pwgtp) |>
-  apply(2, sum) |>
-  (\(x) data.frame(reald = names(x), total_count = x, row.names = NULL))()
-
-# Count up the rarest (primary) assignments
-rarest_counts = pums_rarest |>
-  count(primary, wt = pwgtp) |>
-  rename(reald = primary, primary_count = n)
-
-# Combine together
-all_counts = merge(total_counts, rarest_counts, all = TRUE)
-
-head(all_counts)
-tail(all_counts)
-
-# Export
-write.csv(
-  all_counts, row.names = FALSE, 
-  'results/reald_assignments/acs_reald_counts_2024_5yr.csv'
-)
+# # Export statewide counts of both *primary* assignments and any assignment:
+# 
+# # First get total counts:
+# total_counts = pums_out |>
+#   select(
+#     pwgtp, 
+#     starts_with(c('MENA', 'Wht', 'Asn', 'Afr', 'Lat', 'AIAN', 'NHPI', 'Other'))
+#   ) |>
+#   # Get sums (number of people) identifying as each group
+#   mutate(across(where(is.logical), ~ pwgtp * .)) |>
+#   # Remove person weight colum (population total) because it isn't needed
+#   select(-pwgtp) |>
+#   apply(2, sum) |>
+#   (\(x) data.frame(reald = names(x), total_count = x, row.names = NULL))()
+# 
+# # Count up the rarest (primary) assignments
+# rarest_counts = pums_rarest |>
+#   count(primary, wt = pwgtp) |>
+#   rename(reald = primary, primary_count = n)
+# 
+# # Combine together
+# all_counts = merge(total_counts, rarest_counts, all = TRUE)
+# 
+# head(all_counts)
+# tail(all_counts)
+# 
+# # Export
+# write.csv(
+#   all_counts, row.names = FALSE, 
+#   'results/reald_assignments/acs_reald_counts_2024_5yr.csv'
+# )
