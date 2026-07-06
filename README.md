@@ -28,7 +28,7 @@ Since the initial 2014 release, the REALD standard has undergone several [update
 
 ## Downloads
 
-Releases are published as Stata-formatted datasets. Release tags follow the pattern `{acs-end-year}-reald{standard-year}-v{revision}` — for example, `2023-reald24-v01` is the ACS 5-year sample ending in 2023, classified under the REALD24 standard, first published revision. When a vintage is revised (see [Updates](#updates)), a new `v02` release is published under the same `{acs-end-year}-reald{standard-year}` prefix.
+Releases are published as Stata-formatted datasets. Release tags follow the pattern `{acs-end-year}-reald{standard-year}-v{revision}` — for example, `acs5-2023-reald24-v01` is the ACS 5-year sample ending in 2023, classified under the REALD24 standard, first published revision. When a vintage is revised (see [Updates](#updates)), a new release is published under the same release tag with a new version suffix `-v{revision}`.
 
 | Release | ACS 5-Year Period | REALD Standard | Download |
 |---|---|---|---|
