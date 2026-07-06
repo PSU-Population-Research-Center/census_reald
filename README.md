@@ -32,10 +32,10 @@ Releases are published as Stata-formatted datasets. Release tags follow the patt
 
 | Release | ACS 5-Year Period | REALD Standard | Download |
 |---|---|---|---|
-| `acs5-2024-reald24-v01` | 2020–2024 | REALD24 *(current)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5_2024-reald24) |
+| `acs5-2024-reald24-v01` | 2020–2024 | REALD24 *(current)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2024-reald24) |
 | `acs5-2023-reald24-v01` | 2019–2023 | REALD24 *(current)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2023-reald24) |
 | `acs5-2023-reald20-v02` | 2019–2023 | REALD20 *(deprecated)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2023-reald20) |
-| `acs5-2022-reald20-v02` | 2018–2022 | REALD20 *(deprecated)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2022-reald201) |
+| `acs5-2022-reald20-v02` | 2018–2022 | REALD20 *(deprecated)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2022-reald20) |
 | `acs5-2021-reald20-v02` | 2017–2021 | REALD20 *(deprecated)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2021-reald20) |
 | `acs5-2020-reald20-v02` | 2016–2020 | REALD20 *(deprecated)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2020-reald20) |
 | `acs5-2019-reald20-v02` | 2015–2019 | REALD20 *(deprecated)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2019-reald20) |
