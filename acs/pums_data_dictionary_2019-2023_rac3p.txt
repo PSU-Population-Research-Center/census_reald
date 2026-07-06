@@ -1,0 +1,100 @@
+            001      .White alone
+            002      .Black or African American alone
+            003      .American Indian and Alaska Native alone
+            004      .Asian Indian alone
+            005      .Chinese alone
+            006      .Filipino alone
+            007      .Japanese alone
+            008      .Korean alone
+            009      .Vietnamese alone
+            010      .Other Asian alone
+            011      .Native Hawaiian alone
+            012      .Chamorro alone
+            013      .Samoan alone
+            014      .Other Pacific Islander alone
+            015      .Some Other Race alone
+            016      .White; Black or African American
+            017      .White; American Indian and Alaska Native
+            018      .White; Asian Indian
+            019      .White; Chinese
+            020      .White; Filipino
+            021      .White; Japanese
+            022      .White; Korean
+            023      .White; Vietnamese
+            024      .White; Other Asian
+            025      .White; Native Hawaiian
+            026      .White; Chamorro
+            027      .White; Samoan
+            028      .White; Other Pacific Islander
+            029      .White; Some Other Race
+            030      .Black or African American; American Indian and Alaska Native
+            031      .Black or African American; Asian Indian
+            032      .Black or African American; Chinese
+            033      .Black or African American; Filipino
+            034      .Black or African American; Japanese
+            035      .Black or African American; Korean
+            036      .Black or African American; Other Asian
+            037      .Black or African American; Other Pacific Islander
+            038      .Black or African American; Some Other Race
+            039      .American Indian and Alaska Native; Asian Indian
+            040      .American Indian and Alaska Native; Filipino
+            041      .American Indian and Alaska Native; Some Other Race
+            042      .Asian Indian; Other Asian
+            043      .Asian Indian; Some Other Race
+            044      .Chinese; Filipino
+            045      .Chinese; Japanese
+            046      .Chinese; Korean
+            047      .Chinese; Vietnamese
+            048      .Chinese; Other Asian
+            049      .Chinese; Native Hawaiian
+            050      .Filipino; Japanese
+            051      .Filipino; Native Hawaiian
+            052      .Filipino; Other Pacific Islander
+            053      .Filipino; Some Other Race
+            054      .Japanese; Korean
+            055      .Japanese; Native Hawaiian
+            056      .Vietnamese; Other Asian
+            057      .Other Asian; Other Pacific Islander
+            058      .Other Asian; Some Other Race
+            059      .Other Pacific Islander; Some Other Race
+            060      .White; Black or African American; American Indian and Alaska Native
+            061      .White; Black or African American; Filipino
+            062      .White; Black or African American; Some Other Race
+            063      .White; American Indian and Alaska Native; Filipino
+            064      .White; American Indian and Alaska Native; Some Other Race
+            065      .White; Chinese; Filipino
+            066      .White; Chinese; Japanese
+            067      .White; Chinese; Native Hawaiian
+            068      .White; Filipino; Native Hawaiian
+            069      .White; Japanese; Native Hawaiian
+            070      .White; Other Asian; Some Other Race
+            071      .Chinese; Filipino; Native Hawaiian
+            072      .White; Chinese; Filipino; Native Hawaiian
+            073      .White; Chinese; Japanese; Native Hawaiian
+            074      .Black or African American; Asian groups
+            075      .Black or African American; Native Hawaiian and Other Pacific Islander groups
+            076      .Asian Indian; Asian groups
+            077      .Filipino; Asian groups
+            078      .White; Black or African American; Asian groups
+            079      .White; American Indian and Alaska Native; Asian groups
+            080      .White; Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            081      .White; Black or African American; American Indian and Alaska Native; Asian groups
+            082      .White; Black or African American; American Indian and Alaska Native; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            083      .White; Black or African American; and/or Asian groups; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            084      .White; American Indian and Alaska Native; and/or Asian groups; and/or Native Hawaiian and Other Pacific Islander groups
+            085      .White; Chinese; Filipino; and/or Asian groups; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            086      .White; Chinese; and/or Asian groups; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            087      .White; Filipino; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            088      .White; Japanese; and/or Asian groups; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            089      .White; Asian groups; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            090      .Black or African American; American Indian and Alaska Native; and/or Asian groups; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            091      .Black or African American; Asian groups; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            092      .American Indian and Alaska Native; Asian groups; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            093      .Asian Indian; and/or White; and/or Asian groups; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            094      .Chinese; Japanese; Native Hawaiian; and/or other Asian and/or Pacific Islander groups
+            095      .Chinese; and/or Asian groups; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            096      .Filipino; and/or Asian groups; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            097      .Japanese; and/or Asian groups; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            098      .Korean; and/or Vietnamese; and/or Other Asian; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race
+            099      .Native Hawaiian; and/or Pacific Islander groups; and/or Some Other Race
+            100      .White; and/or Black or African American; and/or American Indian and Alaska Native; and/or Asian groups; and/or Native Hawaiian and Other Pacific Islander groups; and/or Some Other Race

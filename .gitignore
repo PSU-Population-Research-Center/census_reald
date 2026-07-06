@@ -1,3 +1,25 @@
+# ignore data in the root directory 
+/*.dta
+/*.rds
+/*.txt
 
-05_ipf_pums.dta
-05_ipf_pums.dta.gz
+# ignore acs datasets
+acs/*.zip
+acs/*.dta
+
+# ignore jet datasets
+jet/
+
+# ignore administrative info
+_deprecated/
+_deliverables/
+_pdxscholar/
+_IGA/
+_incoming/
+_litreview/
+_notes/
+
+# ignore tempfiles
+temp/
+sos/*.dta
+.Rhistory

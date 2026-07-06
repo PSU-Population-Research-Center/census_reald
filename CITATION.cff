@@ -1,7 +1,4 @@
-# This CITATION.cff file was generated with cffinit.
-# Visit https://bit.ly/cffinit to generate yours today!
-
-cff-version: 1.6.0
+cff-version: 1.7.0
 title: 'ACS Data with Oregon REALD Categories '
 message: >-
   If you use this dataset, please cite it using the metadata
@@ -16,4 +13,4 @@ repository-code: >-
   https://github.com/PSU-Population-Research-Center/census_reald
 abstract: >-
   Code and output datasets for American Community Survey
-  microdata in Oregon REALD (2020 ed) categories.
+  microdata in Oregon REALD categories.
