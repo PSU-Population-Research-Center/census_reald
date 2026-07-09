@@ -39,8 +39,7 @@ if (year %in% 2023) {
       "POBP", "WAOB", "ANC1P", "ANC2P", "RAC1P", "RAC2P19", "RAC2P23", "RAC3P", 
       "RACAIAN","RACASN","RACBLK","RACNH","RACNUM","RACPI","RACSOR","RACWHT",
       "ENG","LANX","LANP")
-}
-if (year %in% 2024) {
+} else if (year %in% 2024) {
   pums_vars = c(
       "STATE", "SERIALNO", "SPORDER", "RT", "PUMA", "PWGTP", "SEX", "AGEP", "HISP",
       "POBP", "WAOB", "ANC1P", "ANC2P", "RAC1P", "RAC2P19", "RAC2P24", "RAC3P", 
@@ -941,26 +940,24 @@ pums_out |>
   mutate(across(-pwgtp, ~ . * pwgtp)) |> 
   apply(2, sum)
 
-# primary (rarest) race assignment
+# Initialize a data frame for storing the primary (rarest) race assignment
 pums_rarest = pums_out |> 
-
   # add a 'primary' column to store the primary
   mutate(primary = 'unassigned')
 
-  # estimate freuqency of top-level groups
-  re_grp_totals = pums_rarest |>
+# estimate frequency of top-level groups
+re_grp_totals = pums_rarest |>
   mutate(
-    j    = if_any(starts_with('J'),  ~ .),
+    j    = if_any(starts_with('J'),    ~ .),
     nhpi = if_any(starts_with('NHPI'), ~ .),
     asn  = if_any(starts_with('Asn') , ~ .),
     aian = if_any(starts_with('AIAN'), ~ .),
     wht  = if_any(starts_with('Wht') , ~ .),
     afr  = if_any(starts_with('Afr') , ~ .),
     lat  = if_any(starts_with('Lat'),  ~ .),
-    mena = if_any(starts_with('MENA'), ~ .)# ,
-    # j    = if_any(starts_with('J')   , ~ .)
+    mena = if_any(starts_with('MENA'), ~ .)
   ) |>
-  select(pwgtp, j, nhpi, asn, aian, wht, afr, lat, mena) |> # , j) |>
+  select(pwgtp, j, nhpi, asn, aian, wht, afr, lat, mena) |>
   # Get sums (number of people) identifying as each group
   mutate(across(where(is.logical), ~ pwgtp * .)) |>
   # Remove person weight colum (population total) because it isn't needed
@@ -1018,11 +1015,32 @@ for (i in 1:length(re_grp_totals)) {
 
 }
 
+# Set seed for random assignment of LatAfr below
+set.seed(2211556)
+
+### Final steps:
+pums_rarest = pums_rarest |>
+  ### Change "unassigned" primary label to "OtherUnassigned"
+  mutate(primary = ifelse(primary %in% 'unassigned', 'OtherUnspec', primary)) |>
+  ### Manually reset the primary of 8% of people IDing as LatAfr to LatAfr
+  # (for structural reasons related to the assignment procedure for rarest race,
+  # LatAfr will be assigned zero individuals and these individuals are assigned
+  # instead to an African group; the 8% figure is based on OHA internal
+  # repository data from May 2026)
+  # (this involves merging back in the LatAfr column from pums_rarest, which is
+  # removed in the assignment procedure above - this step is not very elegant,
+  # but suffices for now!)
+  merge(pums_out |> select(serialno, sporder, LatAfr)) |>
+  mutate(primary = ifelse(LatAfr & runif(nrow(pums_rarest)) < 0.08, 'LatAfr', primary)) |>
+  select(-LatAfr) |>
+  # Change state to integer
+  mutate(state = as.integer(state))
+
 
 # Export only the identifying info and the primary REALD for subquent usage
 #write.csv(
 #  pums_rarest %>% select(state, serialno, sporder, realdpri = primary), row.names = FALSE,
 #  paste0('prc_reldpri24_5acs', year %% 100, '.csv')
 #)
-save.dta13(pums_rarest %>% select(as.integer(state),serialno,sporder,realdpri=primary),
+save.dta13(pums_rarest |> select(state,serialno,sporder,realdpri=primary),
    paste0('prc_reldpri24_5acs', year %% 100, '.dta'))
