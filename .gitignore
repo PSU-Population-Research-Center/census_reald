@@ -6,6 +6,7 @@
 # ignore acs datasets
 acs/*.zip
 acs/*.dta
+acs/*.csv
 
 # ignore jet datasets
 jet/
@@ -23,3 +24,4 @@ _notes/
 temp/
 sos/*.dta
 .Rhistory
+**/Thumbs.db
