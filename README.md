@@ -70,9 +70,10 @@ Each release contains a set of datasets based on one ACS 5-year PUMS, with field
 
 | Date | Description |
 |---|---|
+| 2026-07-15 | Updated REALD24 estimates datasets v02 releases (2023-2024). Added special handling of LatAfr and new control totals for some categories. |
 | 2026-06-30 | New implementation and v01 releases for REALD 2024 standards (2023-2024). |
-| 2025-05-01 | Updated REALD estimates datasets v02 releases (2019-2023). Improved estimates for county standard errors and addition of reliability metrics. Totals across all age groups are now included in each dataset. |
-| 2024-05-31 | Initial REALD estimates datasets v01 releases (2019-2022). |
+| 2025-05-01 | Updated REALD20 estimates datasets v02 releases (2019-2023). Improved estimates for county standard errors and addition of reliability metrics. Totals across all age groups are now included in each dataset. |
+| 2024-05-31 | Initial REALD20 estimates datasets v01 releases (2019-2022). |
 
 ## Data Usage and Suppression
 
