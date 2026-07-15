@@ -1,3 +1,5 @@
+* v21: added additional later Jewish controls to avoid re-inflation of this population (now, pwt4 for reporting)
+*		TBD: preserve and merge using Jewish dummy rather than reldpri=="Jewish" for reweighting.
 * v20: added api key. filter variables when loading PUMS; rescale repwgt.
 * v19: adding a 3-way age category to the results
 * v18: updated reldpri loop for arbitrary nubmers of classes (eg, works for either REALD20 or REALD24 defnitions)
@@ -197,9 +199,32 @@ prog def reControls
 				save temp/control_age_ombhisp_tmp.dta, replace 
 			}
 		}
+	// obtain additional Jewish control totals statewide
+		** interpolated Jewish population from AJPP 2020 and 2024 studies (single county detail)
+		import excel using jet/jet_est.xlsx, cellrange(e29:o67) clear firstrow
+		local midyear=`year'-2 // recall, ACS is controlled to mid-point of 5-year sample.
+		cap confirm var est_`midyear'
+		if _rc {
+			nois di "Jewish Population Controls currently available for 2020-2024 only!"
+			exit
+		}
+		keep stcofips est_`midyear'
+		ren est_`midyear' jet_n1
+		gen int year=`year' 
+		tostring stcofips, replace format(%05.0f)
+		drop if stcofips=="53059" // drop Skamania County, WA
+		save temp/control_jet_tmp.dta, replace
+		** update with control total for non-jewish
+		use temp/control_ageb_tmp.dta, clear
+		collapse (sum) jet_nX=as_n, by(stcofips year)
+		merge 1:1 stcofips year using temp/control_jet_tmp.dta, assert(3) nogen
+		gen jet_n0=jet_nX-jet_n1
+		drop jet_nX
+		reshape long jet_n, i(stcofips year) j(jet)
+		save temp/control_jet_tmp.dta, replace
 end
 *reControls 2021 
-** three datasets: control_age, control_age_ombrace, control_age_ombhisp
+** four datasets: control_age, control_age_ombrace, control_age_ombhisp, control_jet
  
 // generate raked file: age/sex and race-eth by age/sex
 ** TBD: rewrite such that no need to use the prep-control dofile.
@@ -209,7 +234,7 @@ prog def reFile
 	local year=`1'
 	local y=substr("`year'",3,2)
 	// LOAD pums data from prior step and generate flags for control pops
-	use state county year agep rac* hisp sex reldpri ombrrn pwgtp* ///
+	use state county year agep rac* hisp sex reldpri jet ombrrn pwgtp* ///
 		using 5ACS`y'_ORWA_co.dta, clear 
 	gen stcofips=state+county
 	drop state county
@@ -236,7 +261,7 @@ prog def reFile
 	replace agec11b="3544" if inrange(agep,35,44)
 	replace agec11b="4554" if inrange(agep,45,54)
 	replace agec11b="5564" if inrange(agep,55,64)
-	replace agec11b="6599" if inrange(agep,65,99)	
+	replace agec11b="6599" if inrange(agep,65,99) 
 	cap drop ombrace
 	gen ombrace=""
 	replace ombrace="wa" if racwht==1 & racnum==1
@@ -305,16 +330,18 @@ prog def reFile
 	}
 	drop if _merge==2 & ash_n==0
 	drop _merge
-	// FIRST, rake by appx age/sex/race >> convert pwgtp to pwt1; THEN age/sex/hisp >> convert pwt1 to pwt2; THEN, rake by age/sex >> convert pwt2 to pwt3.
+	merge m:1 year stcofips jet using temp/control_jet_tmp.dta, assert(1 3) nogen // _m==1 if county has zero Jewish population
+	// FIRST, rake by appx age/sex/race >> convert pwgtp to pwt1; THEN age/sex/hisp >> convert pwt1 to pwt2; THEN, rake by age/sex 
 	cap drop pwt1
 	set seed 13371701
 	survwgt poststratify pwgtp, by(stcofips sex agec11b ombrace) totvar(asr_n) gen(pwt1) // ombrace w b n a p o m
 	survwgt poststratify pwt1, by(stcofips sex agec11b ombhisp) totvar(ash_n) gen(pwt2) // ombhisp omnh wanh h
-	survwgt poststratify pwt2, by(stcofips sex agec11) totvar(as_n) gen(pwt3) // agecat
+	survwgt poststratify pwt2, by(stcofips jet) totvar(jet_n) gen(pwt3) // Jewish county total
+	survwgt poststratify pwt3, by(stcofips sex agec11) totvar(as_n) gen(pwt4) // agecat
 	// CHECK
-	version 13: table stcofips, contents(sum pwgtp sum pwt1 sum pwt2 sum pwt3 mean atot) format(%7.0fc) row // pwt3 should match ACS SF.
+	version 13: table stcofips, contents(sum pwgtp sum pwt2 sum pwt3 sum pwt4 mean atot) format(%7.0fc) row // pwt4 should match ACS SF.
 	// CLEAN and SAVE
-	drop as_n asr_n ash_n // drop control totals
+	drop as_n asr_n ash_n jet_n // drop control totals
 	egen byte agecat=cut(agep),at(0,5,15,18,20,25,30,40,50,60,65,99)
 	destring stcofips, replace // svy total, over(X) requires num.
 	replace sex="1" if sex=="male"
@@ -322,8 +349,8 @@ prog def reFile
 	destring sex, replace
 	compress
 	// define sample weights
-	qui for num 1/80: replace pwgtpX=pwgtpX*(pwt3/pwgtp) // rescale repwt
-	svyset [iw=pwt3], sdr(pwgtp1-pwgtp80) vce(sdr)
+	qui for num 1/80: replace pwgtpX=pwgtpX*(pwt4/pwgtp) // rescale repwt
+	svyset [iw=pwt4], sdr(pwgtp1-pwgtp80) vce(sdr)
 	gen byte one=1 
 	save 5ACS`y'_ORWA_raceeth.dta, replace
 end
@@ -351,7 +378,7 @@ prog def chkTotal
 	ren v9 eform
 	gen coalpha=_n
 	pause on
-	pause
+	*pause
 	restore
 end
 *chkTotal 2020
@@ -403,7 +430,7 @@ prog def tabAgeSex
 		use stcofips sex agecat pwt* pwgtp* one using 5ACS`y'_ORWA_raceeth.dta, clear
 		fillin stcofips sex agecat
 		recode agecat (0/17=-2) (18/64=-3) (65/99=.), gen(agec3) // 65+ already done.
-		qui for var pwt3 pwgtp1-pwgtp80: replace X=0 if X==.
+		qui for var pwt4 pwgtp1-pwgtp80: replace X=0 if X==.
 		drop _fillin
 		mat master=J(1,12,.) 
 		matrix colnames master="stcofips" "sex" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
@@ -466,7 +493,7 @@ prog def tabReldRR
 		use stcofips sex ombrrn agecat pwt* pwgtp* one using 5ACS`y'_ORWA_raceeth.dta, clear
 		fillin stcofips sex ombrrn agecat
 		recode agecat (0/17=-2) (18/64=-3) (65/99=.), gen(agec3) // 65+ already done.
-		qui for var pwt3 pwgtp1-pwgtp80: replace X=0 if X==.
+		qui for var pwt4 pwgtp1-pwgtp80: replace X=0 if X==.
 		drop _fillin
 		mat master=J(1,13,.)
 		mat colnames master="stcofips" "sex" "ombrrn" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
@@ -557,12 +584,12 @@ prog def tabReldPri
 		use stcofips sex reldpri agecat pwt* pwgtp* one using 5ACS`y'_ORWA_raceeth.dta, clear
 		fillin stcofips sex reldpri agecat
 		recode agecat (0/17=-2) (18/64=-3) (65/99=.), gen(agec3) // 65+ already done.
-		qui for var pwt3 pwgtp1-pwgtp80: replace X=0 if X==. 
+		qui for var pwt4 pwgtp1-pwgtp80: replace X=0 if X==. 
 		drop _fillin
 		encode reldpri, gen(reldprin)
 		levelsof agecat, local(ages)
 		levelsof agec3 if agec3<., local(acats) 
-		forvalues s=2/2 {
+		forvalues s=0/2 {
 			cap restore, not
 			preserve
 			if `s'==0 local slbl="total"

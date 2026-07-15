@@ -2,6 +2,7 @@
 // purpose: impute Jewish ethnicity status in ACS PUMS via PU learning model and county control totals
 // author: sharygin@pdx.edu
 /* notes
+   . v15: update to use new ajpp annual county-level totals (2020-24)
    . v14: rewrite of jet_v13.r in Stata (original code, has some bugs)
    . outputs file jet_5acsYY.dta, with state/serialno/sporder/ethgrpi for merge to ACS PUMS.
    . Requires the user-written `censusapi` package and CURL in %PATH%
@@ -318,35 +319,70 @@ end
 *rm jet_5acs`z'.dta
 
 // control totals
-** from "2020_County.xlsx", based on 2020 AJPP (original filename "2020_AJPP_County_Excels_Total__By_age_polviews_polparty.zip")
-mat control=(1550,3000,2035,300,4000,3500,2000,33800,510,15100,900,950,1250,210,1000,5400)
-mat row_s=control*J(colsof(control),1,1)
-scalar N_pos_total=row_s[1,1] 
-scalar list N_pos_total // statewide total (consistent with county control totals)
-
-// weighted shares per category
-use jet_training.dta, clear
-gen w=1
-qui sum w if ethgrp>0 & !missing(ethgrp)
-local w_tot=`r(sum)'
-mat share_by_cat=J(1,3,0)
-forvalues k=1/3 {
-	qui sum w if ethgrp==`k'
-	local s_`k'=`r(sum)'/`w_tot'
-	mat share_by_cat[1,`k']=`s_`k''
-}
-mat list share_by_cat // statewide share by jet
-
-// control totals by category
-mat control_cat=J(3,16,0)
-forvalues k=1/3 {
-	forvalues c=1/16 {
-		mat control_cat[`k',`c']=round(control[1,`c']*share_by_cat[1,`k'])
+** from 2020, 2024 AJPP special estimates; interpolated; here, sum to the PUMA groups.
+cap prog drop jCont
+prog def jCont
+	args y
+	local y=`y'-2 // ACS est midpoint of 5-yr interval
+	import excel using jet_est.xlsx, cellrange(d29:o67) clear firstrow
+	destring est*, replace ignore(",")
+	confirm var est_`y'
+	for any "OR" "WA": replace cname=subinstr(cname," County, X","",.)
+	// county controls to ACS PUMAs
+	gen byte county = .
+	replace county = 1  if inlist(cname,"Benton","Linn")
+	replace county = 2  if cname=="Clackamas"
+	replace county = 3  if inlist(cname,"Crook","Jefferson","Deschutes")
+	replace county = 4  if cname=="Douglas"
+	replace county = 5  if cname=="Jackson"
+	replace county = 6  if cname=="Lane"
+	replace county = 7  if cname=="Marion"
+	replace county = 8  if cname=="Multnomah"
+	replace county = 9  if inlist(cname,"Baker","Gilliam","Grant","Hood River","Morrow","Sherman","Umatilla","Union")|inlist(cname,"Wallowa","Wasco","Wheeler")
+	replace county = 10 if cname=="Washington"
+	replace county = 11 if cname=="Yamhill"
+	replace county = 12 if inlist(cname,"Tillamook","Columbia","Clatsop")
+	replace county = 13 if inlist(cname,"Josephine","Coos","Curry")
+	replace county = 14 if inlist(cname,"Klamath","Malheur","Lake","Harney")
+	replace county = 15 if inlist(cname,"Polk","Lincoln")
+	replace county = 16 if cname=="Clark"
+	drop if cname=="Skamania"
+	assert county<.
+	// totals by puma
+	collapse (sum) 	est_`y', by(county)
+	mkmat est_`y', mat(control)
+	mat control=control'
+	*mat control=(1550,3000,2035,300,4000,3500,2000,33800,510,15100,900,950,1250,210,1000,5400) // AJPP 2020 hardcode.
+	mat row_s=control*J(colsof(control),1,1)
+	scalar N_pos_total=row_s[1,1] 
+	scalar list N_pos_total // statewide total (consistent with county control totals)
+	//
+	// weighted shares per category
+	use jet_training.dta, clear
+	gen w=1
+	qui sum w if ethgrp>0 & !missing(ethgrp)
+	local w_tot=`r(sum)'
+	mat share_by_cat=J(1,3,0)
+	forvalues k=1/3 {
+		qui sum w if ethgrp==`k'
+		local s_`k'=`r(sum)'/`w_tot'
+		mat share_by_cat[1,`k']=`s_`k''
 	}
-}
-mat cat_s=control_cat*J(16,1,1)
-mat N_by_cat=cat_s'
-mat list N_by_cat // statewide total by jet (internally consistent with county control totals by jet)
+	mat list share_by_cat // statewide share by jet
+	//
+	// control totals by category
+	mat control_cat=J(3,16,0)
+	forvalues k=1/3 {
+		forvalues c=1/16 {
+			mat control_cat[`k',`c']=round(control[1,`c']*share_by_cat[1,`k'])
+		}
+	}
+	mat cat_s=control_cat*J(16,1,1)
+	mat N_by_cat=cat_s'
+	mat list N_by_cat // statewide total by jet (internally consistent with county control totals by jet)end
+end
+*jCont 2023
+*jCont 2024
 
 // reconcile ACS to control total (counties only; earlier versions in R did state total as a first step)
 ** basic approach: random draw to select N by jet with score as weight, check total selected and gsample up or down.

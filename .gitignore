@@ -9,7 +9,8 @@ acs/*.dta
 acs/*.csv
 
 # ignore jet datasets
-jet/
+jet/*.zip
+jet/*.dta
 
 # ignore administrative info
 _deprecated/

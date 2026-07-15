@@ -1,3 +1,4 @@
+* v09 - retain Jewish flag (jet) for later control totals in raceeth dofile
 * v08 - removed hhwgt, ogdirc, added racnhpi; dropped vachu (pwgtp==.)
 * v07 - added ombrrn code (rarest OMB race, pre-REALD24) to complement 'omb' var (rarest OMB race, based on REALD24 primary race)
 * v06 - updated _rc conditions and added stub code for OHA disability flags.
@@ -379,11 +380,14 @@ prog def pumsreld
 	}
 	use "5ACS`y'_ORWA_co.dta", clear
 	destring state, replace
-	merge m:1 state serialno sporder using prc_reldpri`z'_5acs`y'.dta, assert(3) keepus(realdpri) nogen
+	merge m:1 state serialno sporder using prc_reldpri`z'_5acs`y'.dta, assert(3) keepus(realdpri jet) nogen
 	tostring state, replace
 	cap ren realdpri reldpri // later code uses this name.
 	cap gen racnhpi=(racnh==1|racpi==1) // this is OK -- racnum is still 1 if only NH+PI. racnum is # of OMB races and NH/PI is same OMB race.
 	cap drop racnh racpi 
+	replace jet=jet!=.
+	label drop jet
+	assert inrange(jet,0,1)
 	// rarest OMB97 race ~ statewide frequency AOIC: nhpi (37787)<black (140010)<aian (163101)<asian (288867)<hispan ()<white()<sora
 	gen ombrr=""
 	replace ombrr="nhpi" if racnhpi==1 & ombrr==""

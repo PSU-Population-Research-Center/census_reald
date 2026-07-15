@@ -18,10 +18,13 @@
 	- TBD: refactor code to reduce duplication of PUMS datasets; read and write only necessary variables for downnscaling/tabulation
 	- TBD: use of (1) lc5/lep/ac3 or (2) ancestry/waob controls may lead to marginally more accurate county lang blend within langc39/langc42.
 	- TBD: rewrite to use downloaded ACS PUMS instead of API, for PUMS API calls.
+	- TBD: restore functionality to work with deprecated REALD 2020 standards as well
 	- Requested: roll up detailed state disability tabulations by all age groups into county broad ages (5-17, 18-64, 65+)
 	- Requested: additional table with sex/agecat detail for bins: (6 groups: m5-17,m18-64,m65+,f5-17,f18-64,f65+)*(3 bins: 25-100, 100-299, 300+)
 	- Requested: convert Chinese and Persian splits into counts (instead of %)
 changelog:
+	v18: minor update to reflect new version of preppums and raceeth that add Jewish controls.
+	~ timestamp for deliverables from 2026-07-14
 	v17: major update to reflect new workflows and changes to subroutines (see notes to each .do)
 	~ timestamp for deliverables from 2026-07-01
 	v16: updated associated dofiles to add Stata metadata; added report code to output csv.
@@ -49,6 +52,8 @@ changelog:
 
 // setup
 clear
+clear matrix
+clear mata
 set maxvar 32767 // required for fillReport
 import delim using "_censuskey.txt", varn(nonames) clear
 qui levelsof v1, clean local(ckey)
@@ -89,8 +94,8 @@ global ckey "`ckey'"
 // add subroutines to memory
 * rcall Rscript jet.do	// run REALD24 Jewish imputations
 * rcall Rscript reld.r	// run REALD24 other race/ethnicity imputations
-do 03a_preppums_v08.do  // load subroutines: preppums, pumsreld, expandpums
-do 03b_raceeth_v20.do 	// load subroutines: pumsreld, reControls, reFile, tabAgeSex, tabReldRR, tabReldPri
+do 03a_preppums_v09.do  // load subroutines: preppums, pumsreld, expandpums
+do 03b_raceeth_v21.do 	// load subroutines: pumsreld, reControls, reFile, tabAgeSex, tabReldRR, tabReldPri
 do 03c_disab_v17.do 	// load subroutines: disabyControls, disabyFile, tabdisdi, tabda4, tabda7, tabdaoic
 do 03d_language_v20.do 	// load subroutines: langControls, langxwalk, topdown42, langFile, donorLang, tablang, tablangSt, sosTable, sosSplit
 do 04_report_v06.do 	// load subroutines: fillReport
@@ -103,38 +108,39 @@ prog def doRealdCo
 	** then, this file becomes 01_run_all.do, then 02_jet and 03_reald, etc.
 	
 	// pums initialization (ORWA > ORWA_co.dta)
-*	preppums `1' // retrieve variables needed for downscale
-*	expandpums `1' // generate synthetic county level data
-*	pumsreld `1' 2024 // attach imputed REALD status (2020 or 2024 version)
+	preppums `1' // retrieve variables needed for downscale
+	expandpums `1' // generate synthetic county level data
+	pumsreld `1' 2024 // attach imputed REALD status (2020 or 2024 version)
 	
 	// race-eth (ORWA_co > ORWA_raceeth.dta)
-*	reControls `1' // download control totals
-*	reFile `1' // generate raked microdata
-*	chkTotal `1' // compare totals (interactively)
+	reControls `1' // download control totals
+	reFile `1' // generate raked microdata
+	chkTotal `1' // compare totals (interactively)
 	tabAgeSex `1' // export results by age/sex
 	tabReldRR `1' // export results by omb rarest race (from var 'ombrrn')
 	tabReldPri `1' // export totals by reald primary race (from var 'realdpri')
 
 	// disability (ORWA_co > ORWA_disaby.dta)
-*	disabyControls `1' // download control totals
-*	disabyFile `1' // generate raked microdata
+	disabyControls `1' // download control totals
+	disabyFile `1' // generate raked microdata
 	tabdisdi `1' // tables by any disability
 	tabda4 `1' // tabulate by 4-way classification
 	tabda7 `1' // tabulate by 7-way classification
 	tabdaoic `1' // tables by specific disabilities, AOIC
 
 	// languages (ORWA_co > ORWA_lang.dta)
-*	langControls `1' // download control totals
-*	langxwalk // read csv to update language crosswalk between census-sos-oha codes
-*	topdown42 `1' // perform SOS adjustments 
-*	donorLang `1' // generate donor observation dataset(s) when languages are missing in PUMS
-*	langFile `1' // generate raked microdata
+	langControls `1' // download control totals
+	langxwalk // read csv to update language crosswalk between census-sos-oha codes
+	topdown42 `1' // perform SOS adjustments 
+	donorLang `1' // generate donor observation dataset(s) when languages are missing in PUMS
+	langFile `1' // generate raked microdata
 	tablang `1' // export county tables w/SE (broad age groups)
 	tablangSt `1' // export state table w/SE (detailed age groups)
-*	sosTable `1' // copy-paste into Excel
-*	sosSplit `1' // copy-paste into Excel
+	sosTable `1' // copy-paste into Excel
+	sosSplit `1' // copy-paste into Excel
 
 	// Excel reports
-	*fillReport `1' // ('suppress' option adds suppression based on RSE)
+	fillReport `1' // ('suppress' option adds suppression based on RSE)
 end
 *doRealdCo 2023
+*doRealdCo 2024

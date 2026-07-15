@@ -22,7 +22,7 @@
 1235,Greek,15,Greek,10,ell,Greek,grk,Greek,grk,Greek,oie,Other Indo-European languages,oie,Other Indo-European languages
 1242,Albanian,16,Albanian,23,qie,Other Indo-European languages,oie,Other Indo-European languages,oie,Other Indo-European languages,oie,Other Indo-European languages,oie,Other Indo-European languages
 1250,Russian,17,Russian,33,rus,Russian,rus,Russian,rus,Russian,sla,"Russian, Polish, or other Slavic languages",oie,Other Indo-European languages
-1260,Ukrainian,18,Ukrainian,40,ukr ,Ukrainian,osl,Other Slavic languages,osl,Ukrainian or other Slavic languages,sla,"Russian, Polish, or other Slavic languages",oie,Other Indo-European languages
+1260,Ukrainian,18,Ukrainian,40,ukr,Ukrainian,osl,Other Slavic languages,osl,Ukrainian or other Slavic languages,sla,"Russian, Polish, or other Slavic languages",oie,Other Indo-European languages
 1262,Czech,19,Czech/Slovak,27,qsl,Other Slavic languages,osl,Other Slavic languages,osl,Ukrainian or other Slavic languages,sla,"Russian, Polish, or other Slavic languages",oie,Other Indo-European languages
 1263,Slovak,19,Czech/Slovak,27,qsl,Other Slavic languages,osl,Other Slavic languages,osl,Ukrainian or other Slavic languages,sla,"Russian, Polish, or other Slavic languages",oie,Other Indo-European languages
 1270,Polish,20,Polish,31,pol,Polish,pol,Polish,pol,Polish,sla,"Russian, Polish, or other Slavic languages",oie,Other Indo-European languages
@@ -94,7 +94,7 @@
 3500,Tongan,72,Tongan,26,qau,"Ilocano, Samoan, Hawaiian, or other Austronesian languages",opi,Other Pacific Island languages,opi,"Ilocano, Samoan, Hawaiian, or other Austronesian languages",oap,Other Asian and Pacific Island languages,api,Asian and Pacific Island languages
 3570,Hawaiian,73,Hawaiian,26,qau,"Ilocano, Samoan, Hawaiian, or other Austronesian languages",opi,Other Pacific Island languages,opi,"Ilocano, Samoan, Hawaiian, or other Austronesian languages",oap,Other Asian and Pacific Island languages,api,Asian and Pacific Island languages
 3600,Other Eastern Malayo-Polynesian languages,74,Other NHPI,26,qau,"Ilocano, Samoan, Hawaiian, or other Austronesian languages",opi,Other Pacific Island languages,opi,"Ilocano, Samoan, Hawaiian, or other Austronesian languages",oap,Other Asian and Pacific Island languages,api,Asian and Pacific Island languages
-4500,Arabic,75,Arabic,2,qau,Arabic,ara,Arabic,ara,Arabic,ara,Arabic,oth,Other and unspecified languages
+4500,Arabic,75,Arabic,2,arb,Arabic,ara,Arabic,ara,Arabic,ara,Arabic,oth,Other and unspecified languages
 4545,Hebrew,76,Hebrew,13,heb,Hebrew,heb,Hebrew,heb,Hebrew,oth,Other and unspecified languages,oth,Other and unspecified languages
 4560,Assyrian Neo-Aramaic,77,Syriac,28,und,Other and unspecified languages,oth,Other and unspecified languages,afa,"Amharic, Somali, or other Afro-Asiatic languages",oth,Other and unspecified languages,oth,Other and unspecified languages
 4565,Chaldean Neo-Aramaic,77,Syriac,28,und,Other and unspecified languages,oth,Other and unspecified languages,afa,"Amharic, Somali, or other Afro-Asiatic languages",oth,Other and unspecified languages,oth,Other and unspecified languages

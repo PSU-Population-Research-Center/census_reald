@@ -1,14 +1,12 @@
 # notes: intended to be run non-interactively (e.g. Rscript 02_reald_v08.r <year>)
-# v09: updated with AfroLatino override
+# v10: exporting Jewish flag along with reldpri.
+# v09: updated with AfroLatino override.
 # v08: modified to work with 2023 or 2024.
 # v07: updated to merge in J imputations, add Clark WA, and keep var 'state'.
 
 # clear workspace
 rm(list = ls())
-setwd('I:/Research/Shares/population_research/_PROJECTS/_OHA_REALD24_ACS') 
-
-# read census api key
-ckey<-trimws(readLines("_censuskey.txt", warn = FALSE))
+setwd('//share.research.pdx.edu/population_research/_PROJECTS/_OHA_REALD24_ACS') 
 
 # parse and validate command-line argument
 args = commandArgs(trailingOnly = TRUE)
@@ -17,6 +15,9 @@ year = suppressWarnings(as.integer(args[1]))
 if (is.na(year) || year < 2023) {
   stop("Must specify an integer year >= 2023", call. = FALSE)
 }
+
+# read census api key
+ckey<-trimws(readLines("_censuskey.txt", warn = FALSE))
 
 # load packages
 using<-function(...) {
@@ -1037,11 +1038,13 @@ pums_rarest = pums_rarest |>
   # Change state to integer
   mutate(state = as.integer(state))
 
+# Final results by rarest.
+rowsum(pums_rarest$pwgtp, group = pums_rarest$primary)
 
 # Export only the identifying info and the primary REALD for subquent usage
 #write.csv(
 #  pums_rarest %>% select(state, serialno, sporder, realdpri = primary), row.names = FALSE,
 #  paste0('prc_reldpri24_5acs', year %% 100, '.csv')
 #)
-save.dta13(pums_rarest |> select(state,serialno,sporder,realdpri=primary),
+save.dta13(pums_rarest |> select(state,serialno,sporder,realdpri=primary,jet=ethgrpi),
    paste0('prc_reldpri24_5acs', year %% 100, '.dta'))
