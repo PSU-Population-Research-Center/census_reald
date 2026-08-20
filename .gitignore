@@ -2,6 +2,7 @@
 /*.dta
 /*.rds
 /*.txt
+/*.xlsx
 
 # ignore acs datasets
 acs/*.zip
