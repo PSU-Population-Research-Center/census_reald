@@ -24,9 +24,14 @@
 	- Requested: additional table with sex/agecat detail for bins: (6 groups: m5-17,m18-64,m65+,f5-17,f18-64,f65+)*(3 bins: 25-100, 100-299, 300+)
 	- Requested: convert Chinese and Persian splits into counts (instead of %)
 changelog:
+<<<<<<<< Updated upstream:03_controlled_analysis_v20.do
 	v20: clear files from last run
 	v19: call additional HINS datasets and tables and fixed some missing A3 tables (not part of REALD technically).
 	v18: reflect new version of preppums and raceeth that add Jewish controls.
+========
+	v19: minor update to call additional HINS datasets and tables and fixed some missing A3 tables (not part of REALD technically).
+	v18: minor update to reflect new version of preppums and raceeth that add Jewish controls.
+>>>>>>>> Stashed changes:03_controlled_analysis_v19.do
 	~ timestamp for deliverables from 2026-07-14
 	v17: major update to reflect new workflows and changes to subroutines (see notes to each .do)
 	~ timestamp for deliverables from 2026-07-01
@@ -103,7 +108,17 @@ prog def doRealdCo
 *	preppums `1' // retrieve variables needed for downscale
 *	expandpums `1' // generate synthetic county level data
 *	pumsreld `1' 2024 // attach imputed REALD status (2020 or 2024 version)
+<<<<<<<< Updated upstream:03_controlled_analysis_v20.do
 
+========
+	
+	// clear tempfiles
+*	local tempfiles: dir "temp" files "control*.dta"
+*	foreach f of local tempfiles {
+*		erase temp/`f'
+*	}
+	
+>>>>>>>> Stashed changes:03_controlled_analysis_v19.do
 	// race-eth (ORWA_co > ORWA_raceeth.dta)
 *	reControls `1' // download control totals
 *	reFile `1' // generate raked microdata
@@ -115,12 +130,21 @@ prog def doRealdCo
 	// disability (ORWA_co > ORWA_disaby.dta)
 *	disabyControls `1' // download control totals
 *	disabyFile `1' // generate raked microdata
+<<<<<<<< Updated upstream:03_controlled_analysis_v20.do
 *	tabdisdi `1' // tables by any disability
 *	tabda4 `1' // tabulate by 4-way classification
 *	tabda7 `1' // tabulate by 7-way classification
 *	tabdaoic `1' // tables by specific disabilities, AOIC
 *	tabmaid `1' // tables for medicare
 
+========
+	*tabdisdi `1' // tables by any disability
+	*tabda4 `1' // tabulate by 4-way classification
+	*tabda7 `1' // tabulate by 7-way classification
+	*tabdaoic `1' // tables by specific disabilities, AOIC
+	tabmaid `1' // tables for medicare
+	
+>>>>>>>> Stashed changes:03_controlled_analysis_v19.do
 	// languages (ORWA_co > ORWA_lang.dta)
 *	langControls `1' // download control totals
 *	langxwalk // read csv to update language crosswalk between census-sos-oha codes

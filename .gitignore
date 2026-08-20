@@ -13,6 +13,9 @@ acs/*.csv
 jet/*.zip
 jet/*.dta
 
+# ignore unpackaged results
+results/
+
 # ignore administrative info
 _deprecated/
 _deliverables/

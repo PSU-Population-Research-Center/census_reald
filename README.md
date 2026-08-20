@@ -32,8 +32,8 @@ Releases are published as Stata-formatted datasets. Release tags follow the patt
 
 | Release | ACS 5-Year Period | REALD Standard | Download |
 |---|---|---|---|
-| `acs5-2024-reald24-v02` | 2020–2024 | REALD24 *(current)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2024-reald24) |
-| `acs5-2023-reald24-v02` | 2019–2023 | REALD24 *(current)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2023-reald24) |
+| `acs5-2024-reald24-v03` | 2020–2024 | REALD24 *(current)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2024-reald24) |
+| `acs5-2023-reald24-v03` | 2019–2023 | REALD24 *(current)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2023-reald24) |
 | `acs5-2023-reald20-v02` | 2019–2023 | REALD20 *(deprecated)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2023-reald20) |
 | `acs5-2022-reald20-v02` | 2018–2022 | REALD20 *(deprecated)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2022-reald20) |
 | `acs5-2021-reald20-v02` | 2017–2021 | REALD20 *(deprecated)* | [.zip](https://github.com/PSU-Population-Research-Center/census_reald/releases/tag/acs5-2021-reald20) |
@@ -70,6 +70,7 @@ Each release contains a set of datasets based on one ACS 5-year PUMS, with field
 
 | Date | Description |
 |---|---|
+| 2026-08-18 | Updated REALD24 estimates datasets v03 releases (2023-2024). Fixed error in control totals and age groups for disability tabulations.
 | 2026-07-15 | Updated REALD24 estimates datasets v02 releases (2023-2024). Added special handling of LatAfr and new control totals for some categories. |
 | 2026-06-30 | New implementation and v01 releases for REALD 2024 standards (2023-2024). |
 | 2025-05-01 | Updated REALD20 estimates datasets v02 releases (2019-2023). Improved estimates for county standard errors and addition of reliability metrics. Totals across all age groups are now included in each dataset. |

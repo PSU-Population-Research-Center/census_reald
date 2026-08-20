@@ -1,6 +1,12 @@
-* v17: (wip) add tables by h (hins4, medicad) and h_r (by ombrr race) and h_r_a3 (+ 3-way age group). filter variables when loading PUMS; 
-*		add API key; add REALD disability items in disabyFile subroutine (formerly in OHA REALD code, moved here); rescale repwgt.
-* v16: fixed bug in a_r control; added health insurance tables; adding additional universe constraints (for when U=CIV NINST)
+* v20: fixed bug with final maid table (was agec3, now agec3b). fixed bug with race iterations table numbers (HH=>HWNH,IWNH->IH); 
+*		condensed hinsr age groups (was agec9, now agec3b); reordered disability raking steps (put a/s/r first, maid last); reduce iterations 70->20 (<.5% change)
+* v19: removed hins from raking ~ fixed maid age rake to agec3b (was agec9); increase iterations 50->70
+*		considering to move ins/pov to r/e model or a new model?
+* v18: fixed bug missing A3 groups for disability results tables. updated insurance table to reference Medicaid specifically.
+* v17: filter variables when loading PUMS; add API key; rescale repwgt; added 3-way age groups to results;
+*		add REALD disability items in disabyFile subroutine (formerly in OHA REALD code, moved here).
+* v16: fixed bug in a_r control; added health insurance datasets and tables h (hins4, medicaid) h_r (by ombrr race) h_r_a3 (+ 3-way age group)
+*		adding additional universe constraints (for when U=CIV NINST).
 *		major rework to PUMS-SF harmonization (by adding donor obs from statewide PUMS, rather than synthetic observations as before)
 *		(maybe wasn't needed because during raking we're only adjusting weights for nonmissing values and NIU will not be a raked value)
 * v15: adding 3-way broad age groups
@@ -46,17 +52,17 @@ prog def disabyControls
 		drop *m *ea *ma
 		rename b`2'_*e e*
 		#delimit ;
-		if "`1'"=="dout" { ; // 3 age groups;
-			gen `1'1_1834_1=e004; gen `1'1_1834_2=e017; gen `1'1_3564_1=e007;
-			gen `1'1_3564_2=e020; gen `1'1_6599_1=e010+e013; gen `1'1_6599_2=e023+e026;
-			gen `1'2_1834_1=e005; gen `1'2_1834_2=e018; gen `1'2_3564_1=e008;
-			gen `1'2_3564_2=e021; gen `1'2_6599_1=e011+e014; gen `1'2_6599_2=e024+e027;	};
-		else if inlist("`1'","ddrs","dphy","drem") { ; // 4 age groups;
-			gen `1'1_0517_1=e004; gen `1'1_1834_1=e007; gen `1'1_3564_1=e010; gen `1'1_6599_1=e013+e016;
-			gen `1'2_0517_1=e005; gen `1'2_1834_1=e008;	gen `1'2_3564_1=e011; gen `1'2_6599_1=e014+e017;
-			gen `1'1_0517_2=e020; gen `1'1_1834_2=e023; gen `1'1_3564_2=e026; gen `1'1_6599_2=e029+e032;
-			gen `1'2_0517_2=e021; gen `1'2_1834_2=e024; gen `1'2_3564_2=e027; gen `1'2_6599_2=e030+e033; };
-		else if inlist("`1'","deye","dear","dis") { ; // 5 age groups;
+		if "`1'"=="dout" { ; // 3 age groups out of 5;
+														gen `1'1_1834_1=e004; gen `1'1_3564_1=e007; gen `1'1_6599_1=e010+e013; 
+														gen `1'2_1834_1=e005; gen `1'2_3564_1=e008; gen `1'2_6599_1=e011+e014;  
+														gen `1'1_1834_2=e017; gen `1'1_3564_2=e020; gen `1'1_6599_2=e023+e026;
+														gen `1'2_1834_2=e018; gen `1'2_3564_2=e021; gen `1'2_6599_2=e024+e027;	};
+		else if inlist("`1'","ddrs","dphy","drem") { ; // 4 age groups out of 5;
+								  gen `1'1_0517_1=e004; gen `1'1_1834_1=e007; gen `1'1_3564_1=e010; gen `1'1_6599_1=e013+e016;
+								  gen `1'2_0517_1=e005; gen `1'2_1834_1=e008; gen `1'2_3564_1=e011; gen `1'2_6599_1=e014+e017;
+								  gen `1'1_0517_2=e020; gen `1'1_1834_2=e023; gen `1'1_3564_2=e026; gen `1'1_6599_2=e029+e032;
+								  gen `1'2_0517_2=e021; gen `1'2_1834_2=e024; gen `1'2_3564_2=e027; gen `1'2_6599_2=e030+e033; };
+		else if inlist("`1'","deye","dear","dis") { ; // 5 age groups out of 5;
 			gen `1'1_0004_1=e004; gen `1'1_0517_1=e007; gen `1'1_1834_1=e010; gen `1'1_3564_1=e013; gen `1'1_6599_1=e016+e019;
 			gen `1'2_0004_1=e005; gen `1'2_0517_1=e008;	gen `1'2_1834_1=e011; gen `1'2_3564_1=e014;	gen `1'2_6599_1=e017+e020;
 			gen `1'1_0004_2=e023; gen `1'1_0517_2=e026; gen `1'1_1834_2=e029; gen `1'1_3564_2=e032; gen `1'1_6599_2=e035+e038;
@@ -107,7 +113,7 @@ prog def disabyControls
 		gen int year=`year'
 		gen byte noninscil=1
 		save temp/control_disn_tmp.dta, replace
-	// obtain control totals by medicaid (U=civ ninst)
+	// obtain control totals by medicaid (U=civni)
 		*"SAHIE is the only source for single-year estimates of health insurance coverage for all US counties. If you are working with county-level analysis, it is probably a better source than the ACS."
 		tempfile tmp
 		local T="C27007"
@@ -117,12 +123,10 @@ prog def disabyControls
 		append using `tmp'
 		drop *m *ea *ma
 		rename c27007_*e e*
-		gen maid_0018_1=e004+e014
-		gen maid_1964_1=e007+e017
-		gen maid_6599_1=e010+e020
-		gen maid_0018_0=e005+e015
-		gen maid_1964_0=e008+e018
-		gen maid_6599_0=e011+e021
+		#delimit ;
+		gen maid_0018_1=e004+e014; gen maid_1964_1=e007+e017; gen maid_6599_1=e010+e020;
+		gen maid_0018_0=e005+e015; gen maid_1964_0=e008+e018; gen maid_6599_0=e011+e021;
+		#delimit cr
 		tostring state, replace format(%02.0f) 
 		tostring county, replace format(%03.0f)
 		gen stcofips=state+county
@@ -134,33 +138,21 @@ prog def disabyControls
 		gen int year=`year'
 		gen byte noninscil=1
 		save temp/control_maid_tmp.dta, replace
-	// obtain by insured/uninsured by age/race (U=civ ninst) (r=b,n,a,p,o,m,h,wanh)
+	// obtain by insured/uninsured by age/race (r=b,n,a,p,o,m,wanh,h) (U=civni)
 		tempfile tmp
-		local T="B27001" 
+		local T="B27001" // agec9
 		censusapi, url("https://api.census.gov/data/`year'/acs/acs5?get=group(`T')&for=county:*&in=state:41&key=$ckey")
 		save `tmp', replace
 		censusapi, url("https://api.census.gov/data/`year'/acs/acs5?get=group(`T')&for=county:011&in=state:53&key=$ckey")
 		append using `tmp'
 		drop *m *ea *ma
 		rename b27001_*e e*
-		gen hins_0005_1=e004+e032
-		gen hins_0618_1=e007+e035
-		gen hins_1925_1=e010+e038
-		gen hins_2634_1=e013+e041
-		gen hins_3544_1=e016+e044
-		gen hins_4554_1=e019+e047
-		gen hins_5564_1=e022+e050
-		gen hins_6574_1=e025+e053
-		gen hins_7599_1=e028+e056
-		gen hins_0005_0=e005+e033
-		gen hins_0618_0=e008+e036
-		gen hins_1925_0=e011+e039
-		gen hins_2634_0=e014+e042
-		gen hins_3544_0=e017+e045
-		gen hins_4554_0=e020+e048
-		gen hins_5564_0=e023+e051
-		gen hins_6574_0=e026+e054
-		gen hins_7599_0=e029+e057
+		#delimit ;
+		/* gen hins_0005_1=e004+e032; gen hins_0618_1=e007+e035; gen hins_1925_1=e010+e038; gen hins_2634_1=e013+e041; gen hins_3544_1=e016+e044; gen hins_4554_1=e019+e047; gen hins_5564_1=e022+e050; gen hins_6574_1=e025+e053; gen hins_7599_1=e028+e056;  */
+		/* gen hins_0005_0=e005+e033; gen hins_0618_0=e008+e036; gen hins_1925_0=e011+e039; gen hins_2634_0=e014+e042; gen hins_3544_0=e017+e045; gen hins_4554_0=e020+e048; gen hins_5564_0=e023+e051; gen hins_6574_0=e026+e054; gen hins_7599_0=e029+e057; */
+		gen hins_0018_1=e004+e032+e007+e035; gen hins_1964_1=e010+e038+e013+e041+e016+e044+e019+e047+e022+e050; gen hins_6599_1=e025+e053+e028+e056; 
+		gen hins_0018_0=e005+e033+e008+e036; gen hins_1964_0=e011+e039+e014+e042+e017+e045+e020+e048+e023+e051; gen hins_6599_0=e026+e054+e029+e057; 
+		#delimit cr
 		tostring state, replace format(%02.0f) 
 		tostring county, replace format(%03.0f)
 		gen stcofips=state+county
@@ -168,13 +160,14 @@ prog def disabyControls
 		reshape long hins_@_0 hins_@_1, i(stcofips) j(agecat) string
 		reshape long hins__@, i(stcofips agecat) j(hins) 
 		ren hins__ hins_n
-		ren agecat agec9
+		*ren agecat agec9
+		ren agecat agec3b
 		gen int year=`year'
 		gen byte noninscil=1
 		save temp/control_hins_tmp.dta, replace
 		** race iterations
 		local T="C27001"
-		foreach r in "BB" "CN" "DA" "EP" "FO" "GM" "HH" "IWNH" {
+		foreach r in "BB" "CN" "DA" "EP" "FO" "GM" "HWNH" "IH" {
 			local s=substr("`r'",1,1)
 			local r=substr("`r'",2,.)
 			tempfile tmp
@@ -185,20 +178,18 @@ prog def disabyControls
 			drop *m *ea *ma
 			local s=lower("`s'")
 			ren c27001`s'_*e e*
-			gen hins_0018_1_`r'=e003
-			gen hins_1964_1_`r'=e006
-			gen hins_6599_1_`r'=e009
-			gen hins_0018_0_`r'=e004
-			gen hins_1964_0_`r'=e007
-			gen hins_6599_0_`r'=e010
+			#delimit ;
+			gen hins_0018_`r'_1=e003; gen hins_1964_`r'_1=e006; gen hins_6599_`r'_1=e009;
+			gen hins_0018_`r'_0=e004; gen hins_1964_`r'_0=e007; gen hins_6599_`r'_0=e010;
+			#delimit cr
 			tostring state, replace format(%02.0f) 
 			tostring county, replace format(%03.0f)
 			gen stcofips=state+county
-			keep stcofips hins_*`r'
-			reshape long hins_@_1_`r' hins_@_0_`r', i(stcofips) j(agecat) string
-			reshape long hins__@_`r', i(stcofips agecat) j(hins)
+			keep stcofips hins_*
+			reshape long hins_@_`r'_1 hins_@_`r'_0, i(stcofips) j(agecat) string
+			reshape long hins__`r'_@, i(stcofips agecat) j(hins)
 			ren agecat agec3b
-			ren hins___`r' hinsr`r'_n
+			ren hins__`r'_ hinsr`r'_n
 			gen int year=`year'
 			gen byte noninscil=1
 			ren *, lower
@@ -249,7 +240,7 @@ prog def disabyControls
 		save temp/control_age_tmp.dta, replace
 		** race iterations
 		local T="B01001"
-		foreach r in "BB" "CN" "DA" "EP" "FO" "GM" "HH" "IWNH" {
+		foreach r in "BB" "CN" "DA" "EP" "FO" "GM" "HWNH" "IH" {
 			local s=substr("`r'",1,1)
 			local r=substr("`r'",2,.)
 			tempfile tmp
@@ -303,7 +294,7 @@ prog def disabyFile
 	replace hins=1 if hins1==1|hins2==1|hins3==1|hins4==1|hins5==1|hins6==1|hins7==1 // any insurance
 	replace hins=0 if hins1==2&hins2==2&hins3==2&hins4==2&hins5==2&hins6==2&hins7==2 // no insurance
 	gen byte maid=.
-	replace maid=1 if hins4==1 // medicaid
+	replace maid=1 if hins4==1 // Medicaid, Medical Assistance, or any kind of government-assistance plan for those with low incomes or a disability
 	replace maid=0 if hins4==2 
 	** add race dummies
 	gen byte h=1 if inrange(hisp,2,24)
@@ -407,15 +398,6 @@ prog def disabyFile
 	replace agec5="1834" if inrange(agep,18,34)
 	replace agec5="3564" if inrange(agep,35,64)
 	replace agec5="6599" if inrange(agep,65,99)
-	replace agec9="0005" if inrange(agep,0,5)
-	replace agec9="0618" if inrange(agep,6,18)
-	replace agec9="1925" if inrange(agep,19,25)
-	replace agec9="2634" if inrange(agep,26,34)
-	replace agec9="3544" if inrange(agep,35,44)
-	replace agec9="4554" if inrange(agep,45,54)
-	replace agec9="5564" if inrange(agep,55,64)
-	replace agec9="6574" if inrange(agep,65,74)
-	replace agec9="7599" if inrange(agep,75,99)
 	replace agec11="0004" if inrange(agep,0,4)
 	replace agec11="0514" if inrange(agep,5,14)
 	replace agec11="1517" if inrange(agep,15,17)
@@ -441,7 +423,7 @@ prog def disabyFile
 	save 5ACS`y'_ORWA_disaby.dta, replace 
 	** add donor obs if necessary to ensure all SF controls reflected in PUMS
 	use 5ACS`y'_ORWA_disaby.dta, clear 
-	qui foreach d in "dis agec5" "disn agec3" "maid agec3b" "hins agec9" "dear agec5" "deye agec5" "dphy agec5" "drem agec5" "ddrs agec5" "dout agec5"  { 
+	qui foreach d in "dis agec5" "disn agec3" "maid agec3b" "hins agec3b" "dear agec5" "deye agec5" "dphy agec5" "drem agec5" "ddrs agec5" "dout agec5"  { 
 		tokenize `d'
 		local d="`1'"
 		local a="`2'"
@@ -474,7 +456,7 @@ prog def disabyFile
 		}
 	}
 	** add control totals (adding to any donor obs. added above)
-	foreach d in "dis agec5" "disn agec3" "maid agec3b" "hins agec9" "dear agec5" "deye agec5" "dphy agec5" "drem agec5" "ddrs agec5" "dout agec5" { 
+	foreach d in "dis agec5" "disn agec3" "maid agec3b" "hins agec3b" "dear agec5" "deye agec5" "dphy agec5" "drem agec5" "ddrs agec5" "dout agec5" { 
 		tokenize `d'
 		local d="`1'"
 		local a="`2'"
@@ -485,69 +467,21 @@ prog def disabyFile
 		assert _merge!=2
 		drop _merge
 	}
-	** add control totals by age/sex and age/race
+	** add control totals by age/sex and age/race (not by noninscil) ~ from 
 	merge m:1 stcofips year sex agec11 using temp/control_age_tmp.dta, assert(3) nogen keepus(as_n)
 	merge m:1 stcofips year agec11b using temp/control_ager_tmp.dta, assert(3) nogen keepus(a*_n)	
-	** add control totals for hins by race
+	** add control totals for hins by race (noninscil)
 	merge m:1 stcofips year agec3b noninscil hins using temp/control_hinsr_tmp.dta, assert(1 3) keepus(hinsr*_n) 
 	assert noninscil==0 if _merge==1 // _m==1 for NIU 
 	drop _merge
-	// initial rake ~ detailed age/sex (gen pwt1) 
-	set seed 1337170
-	survwgt poststratify pwgtp, by(stcofips agec11 sex) totvar(as_n) gen(pwt1)
-	** 2nd rake by age/sex/dis (gen pwt2) ~ 3rd rake by age/numdis (gen pwt3) => deprecated, moved into loop below.
 	// iterated raking ~ multiple conditions (gen pwt2--pwtN, one per loop) 
-	local i=2 // starting number
-	qui while `i'<=50 { // ending number (end-start = N iterations) ~ 40 iter: <2.5% ~ 50 iter: <1.5%
+	local i=1 // starting number
+	clonevar pwt0=pwgtp
+	set seed 13371701
+	qui while `i'<=20 { // ending number (end-start = N iterations) ~ 10/20 iter: 1%/.4% change
 		local h=`i'-1
 		clonevar pwt`i'=pwt`h'
-		** battery 1: age/sex/dis
-		set seed 1337170
-		survwgt poststratify pwt`i' if noninscil==1, by(stcofips agec5 sex noninscil dis) totvar(dis_n) gen(tmp)
-		replace pwt`i'=tmp if noninscil==1
-		drop tmp		
-		** battery 2: number of disabilities
-		set seed 1337170
-		survwgt poststratify pwt`i' if noninscil==1, by(stcofips agec3 noninscil disn) totvar(disn_n) gen(tmp) 
-		replace pwt`i'=tmp if noninscil==1
-		drop tmp
-		** battery 3: specific disabilities
-		foreach d in "dis" "dear" "deye" { // all ages civ ninst
-			set seed 1337170
-			survwgt poststratify pwt`i' if noninscil==1, by(stcofips agec5 sex noninscil `d') totvar(`d'_n) gen(tmp)
-			replace pwt`i'=tmp if noninscil==1
-			drop tmp
-		}
-		foreach d in "dphy" "drem" "ddrs" { // ages 5+ civ ninst
-			set seed 1337170
-			survwgt poststratify pwt`i' if noninscil<. & agep>=5, by(stcofips agec5 sex noninscil `d') totvar(`d'_n) gen(tmp)
-			replace pwt`i'=tmp if noninscil==1 & agep>=5
-			drop tmp
-		}
-		foreach d in "dout" { // ages 18+ civ ninst
-			set seed 1337170
-			survwgt poststratify pwt`i' if noninscil==1 & agep>=18, by(stcofips agec5 sex noninscil `d') totvar(`d'_n) gen(tmp)
-			replace pwt`i'=tmp if noninscil==1 & agep>=18
-			drop tmp
-		}
-		** battery 4: health insurance by age/race
-		set seed 1337170
-		survwgt poststratify pwt`i' if noninscil==1, by(stcofips agec9 noninscil hins) totvar(hins_n) gen(tmp) // all civ ninst
-		replace pwt`i'=tmp if noninscil==1
-		drop tmp
-		foreach r in "b" "n" "a" "p" "o" "m" "h" "wnh" {
-			set seed 1337170
-			survwgt poststratify pwt`i' if `r'==1 & noninscil==1, by(stcofips agec3b noninscil hins `r') totvar(hinsr`r'_n) gen(tmp)
-			replace pwt`i'=tmp if `r'==1 & noninscil==1
-			drop tmp
-		}
-		** battery 5: medicaid by age
-		set seed 1337170
-		survwgt poststratify pwt`i' if noninscil==1, by(stcofips agec9 noninscil maid) totvar(maid_n) gen(tmp)
-		replace pwt`i'=tmp if noninscil==1
-		drop tmp
-		** battery 6: detailed age/sex/race
-		set seed 1337170
+		** battery 1: detailed age/sex/race
 		survwgt poststratify pwt`i', by(stcofips agec11 sex) totvar(as_n) replace // all
 		foreach r in "b" "n" "a" "p" "o" "m" "h" "wnh" {
 			set seed 1337170
@@ -555,6 +489,43 @@ prog def disabyFile
 			replace pwt`i'=tmp if `r'==1
 			drop tmp
 		}		
+		** battery 2: age/sex/dis
+		survwgt poststratify pwt`i' if noninscil==1, by(stcofips agec5 sex noninscil dis) totvar(dis_n) gen(tmp)
+		replace pwt`i'=tmp if noninscil==1
+		drop tmp		
+		** battery 3: number of disabilities
+		survwgt poststratify pwt`i' if noninscil==1, by(stcofips agec3 noninscil disn) totvar(disn_n) gen(tmp) 
+		replace pwt`i'=tmp if noninscil==1
+		drop tmp
+		** battery 4: specific disabilities
+		foreach d in "dis" "dear" "deye" { // all ages civ ninst
+			survwgt poststratify pwt`i' if noninscil==1, by(stcofips agec5 sex noninscil `d') totvar(`d'_n) gen(tmp)
+			replace pwt`i'=tmp if noninscil==1
+			drop tmp
+		}
+		foreach d in "dphy" "drem" "ddrs" { // ages 5+ civ ninst
+			survwgt poststratify pwt`i' if noninscil==1 & agep>=5, by(stcofips agec5 sex noninscil `d') totvar(`d'_n) gen(tmp)
+			replace pwt`i'=tmp if noninscil==1 & agep>=5
+			drop tmp
+		}
+		foreach d in "dout" { // ages 18+ civ ninst
+			survwgt poststratify pwt`i' if noninscil==1 & agep>=18, by(stcofips agec5 sex noninscil `d') totvar(`d'_n) gen(tmp)
+			replace pwt`i'=tmp if noninscil==1 & agep>=18
+			drop tmp
+		}
+		** battery 5: health insurance by age/raced 
+		survwgt poststratify pwt`i' if noninscil==1, by(stcofips agec3b noninscil hins) totvar(hins_n) gen(tmp) 
+		replace pwt`i'=tmp if noninscil==1
+		drop tmp
+		foreach r in "b" "n" "a" "p" "o" "m" "h" "wnh" {
+			survwgt poststratify pwt`i' if `r'==1 & noninscil==1, by(stcofips agec3b noninscil hins `r') totvar(hinsr`r'_n) gen(tmp)
+			replace pwt`i'=tmp if `r'==1 & noninscil==1
+			drop tmp
+		}
+		** battery 6: medicaid by age (agec3b)
+		survwgt poststratify pwt`i' if noninscil==1, by(stcofips agec3b noninscil maid) totvar(maid_n) gen(tmp)
+		replace pwt`i'=tmp if noninscil==1
+		drop tmp
 		** report
 		replace pwt`i'=0 if pwt`i'==.
 		gen diff=abs(pwt`i'-pwt`h')*100
@@ -577,14 +548,15 @@ prog def disabyFile
 	**	pwt1=after age/sex/dis ; pwt4=after first loop; pwt40=after 40 rounds of raking
 		*version 13: table stcofips, contents(sum pwgtp sum pwt4 sum pwt40 mean a_tot) 
 		*version 13: table stcofips if dis==1, contents(sum pwgtp sum pwt4 sum pwt40 mean dis1_tot) 
+		assert ombrrn<. & agep<. & noninscil<. & reldpri!="" & sex<. & stcofips!="" & pwt20<.
 	// CLEAN and SAVE
-		keep stcofips sex reldpri ombrrn agep noninscil a*_n d* maid hins* pwt50 pwgtp* 
+		keep stcofips sex reldpri ombrrn agep noninscil a*_n d* maid hins* pwt20 pwgtp* 
 		egen byte agecat=cut(agep),at(0,5,15,18,20,25,30,40,50,60,65,99) // for A11, 11-way age tables
 		destring stcofips, replace // svy total, over(X) requires num.
 		compress
 		// define sample weights
-		qui for num 1/80: replace pwgtpX=pwgtpX*(pwt50/pwgtp) // rescale repwt
-		svyset [iw=pwt50], sdr(pwgtp1-pwgtp80) vce(sdr) // pwt3: agesex->disn->disdi pwt4: +conditions.
+		qui for num 1/80: replace pwgtpX=pwgtpX*(pwt20/pwgtp) // rescale repwt
+		svyset [iw=pwt20], sdr(pwgtp1-pwgtp80) vce(sdr) // pwt3: agesex->disn->disdi pwt4: +conditions.
 		save 5ACS`y'_ORWA_disaby.dta, replace 
 end
 *disabyFile 2020
@@ -596,7 +568,7 @@ prog def diLabel
 	label var year "last year of 5ACS`1' sample"
 	label var stcofips "FIPS code (2-digit State + 3-digit County)"
 	label var sex "Sex (0=Total 1=Male 2=Female)"
-	label var agecat "Age Group (-1=Total;-2=Age<18;-3=Age18-64) (0-4 5-14 15-17 18-19 20-24 25-29 30-39 40-49 50-59 60-64 65+)"
+	label var agecat "Age Group (<0 for broad groups) (0-4 5-14 15-17 18-19 20-24 25-29 30-39 40-49 50-59 60-64 65+)"
 	label var b "Estimate"
 	format b %9.0g
 	label var se "Standard Error"
@@ -610,7 +582,7 @@ prog def diLabel
 	format ul %7.0f
 	drop z df crit eform
 	lab def SEX 0 "Total" 1 "Male" 2 "Female", replace
-	lab def AGEC11 -3 "18-64" -2 "<18" -1 "Total" 0 "0-4" 5 "5-14" 15 "15-17" 18 "18-19" 20 "20-24" 25 "25-29" 30 "30-39" 40 "40-49" 50 "50-59" 60 "60-64" 65 "65+", replace
+	lab def AGEC11 -5 "19-64" -4 "<19" -3 "18-64" -2 "<18" -1 "Total" 0 "0-4" 5 "5-14" 15 "15-17" 18 "18-19" 20 "20-24" 25 "25-29" 30 "30-39" 40 "40-49" 50 "50-59" 60 "60-64" 65 "65+", replace
 	label values agecat AGEC11
 	label values sex SEX
 	recast byte sex
@@ -640,7 +612,7 @@ prog def tabdisdi
 		sort stcofips agecat disdi
 		fillin stcofips agecat disdi // rectangularize (to ensure 37 rows for each svy total results matrix)
 		recode agecat (0/17=-2) (18/64=-3) (65/99=.), gen(agec3)
-		qui for var pwt50 pwgtp1-pwgtp80: replace X=0 if X==. 
+		qui for var pwt20 pwgtp1-pwgtp80: replace X=0 if X==. 
 		drop _fillin
 		gen byte one=1 
 		levelsof agec3, local(acats)
@@ -716,9 +688,10 @@ prog def tabda4
 		sort stcofips agecat da4cat
 		fillin stcofips agecat da4cat // rectangularize (to ensure 37 rows for each svy total results matrix)
 		recode agecat (0/17=-2) (18/64=-3) (65/99=.), gen(agec3)
-		qui for var pwt50 pwgtp1-pwgtp80: replace X=0 if X==. 
+		qui for var pwt20 pwgtp1-pwgtp80: replace X=0 if X==. 
 		drop _fillin
 		gen byte one=1 
+		levelsof agec3, local(acats)
 		levelsof agecat, local(ages)
 		qui forvalues d=-1/3 {
 			nois di _newline ". Disab: da4cat:`d' | Age: " _cont
@@ -798,9 +771,10 @@ prog def tabda7
 		sort stcofips agecat da7compacsall
 		fillin stcofips agecat da7compacsall // rectangularize (to ensure 37 rows for each svy total results matrix)
 		recode agecat (0/17=-2) (18/64=-3) (65/99=.), gen(agec3)
-		qui for var pwt50 pwgtp1-pwgtp80: replace X=0 if X==. 
+		qui for var pwt20 pwgtp1-pwgtp80: replace X=0 if X==. 
 		drop _fillin
 		gen byte one=1 
+		levelsof agec3, local(acats)
 		levelsof agecat, local(ages)
 		qui forvalues d=-1/6 {
 			nois di _newline ". Disab: da7compacsall:`d' | Age: " _cont
@@ -882,9 +856,10 @@ prog def tabdaoic
 			sort stcofips agecat `v'oicv2
 			fillin stcofips agecat `v'oicv2 // rectangularize (to ensure 37 rows for each svy total results matrix)
 			recode agecat (0/17=-2) (18/64=-3) (65/99=.), gen(agec3)
-			qui for var pwt50 pwgtp1-pwgtp80: replace X=0 if X==. 
+			qui for var pwt20 pwgtp1-pwgtp80: replace X=0 if X==. 
 			drop _fillin
 			gen byte one=1 
+			levelsof agec3, local(acats)
 			levelsof agecat, local(ages)
 			forvalues d=0/2 {
 				nois di _newline ". Disab: `v'oicv2:`d' | Age: " _cont
@@ -961,78 +936,72 @@ prog def tabdaoic
 end
 *tabdaoic 2020
 
-// tables by hisn4 (maid) and hins4*race
+// tables by maid (hins4) and ombrace
 // totals by OMB rarest race/ethnicity (H, HR, HRA3)
-capture prog drop tabHinsR
-prog def tabHinsR
-	cap use results/results_hins_ombrr_`1'.dta, clear
+capture prog drop tabmaid
+prog def tabmaid
+	cap use results/results_maid_ombrr_`1'.dta, clear
 	if _rc {
 		local y=substr("`1'",3,2)
-		use stcofips sex ombrrn agecat pwt* pwgtp* hins noninscil if noninscil==1 using 5ACS`y'_ORWA_disaby.dta, clear
-		drop noninscil 
-		fillin stcofips sex ombrrn agecat
-		recode agecat (0/17=-2) (18/64=-3) (65/99=.), gen(agec3) // 65+ already done.
-		qui for var pwt50 pwgtp1-pwgtp80: replace X=0 if X==.
+		use stcofips sex ombrrn agep pwt* pwgtp* maid noninscil if noninscil==1 using 5ACS`y'_ORWA_disaby.dta, clear
+		drop noninscil sex
+		recode agep (0/18=-4) (19/64=-5) (65/99=65), gen(agec3b) 
+		fillin stcofips ombrrn agec3b maid
+		qui for var pwt20 pwgtp1-pwgtp80: replace X=0 if X==.
 		drop _fillin
 		mat master=J(1,14,.)
-		mat colnames master="stcofips" "sex" "hins" "ombrrn" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
+		mat colnames master="stcofips" "sex" "maid" "ombrrn" "agecat" "b" "se" "z" "p" "ll" "ul" "df" "crit" "eform"
 		gen byte one=1 
-		levelsof agecat, local(ages)
-		levelsof agec3 if agec3<., local(acats) 
-		forvalues h=0/1 { // 0=entire Univ; 1=has medicaid/hins4==true.
+		levelsof agec3b, local(acats) // "if agec3<." was used before so that don't repeat 65+
+		*levelsof agecat, local(ages)
+		forvalues h=0/1 { // 0=no; 1=has medicaid/hins4==true.
 			forvalues r=0/7 {
 				local rlbl: label ombrrn `r'
 				if `r'==0 local rlbl="total"
-				nois di _newline ". Now running: Medicaid (HINS4) for OMBRR: `rlbl' Age: " _cont
+				nois di _newline ". Now running: Medicaid (HINS4)=`h' for OMBRR: `rlbl' Age: " _cont
 				/** detailed ages 
 				foreach a of local ages {
 					nois di "`a'." _cont
 					ereturn clear
-					if `h'>0 & `r'>0 qui svy sdr: total one if agecat==`a' & ombrrn==`r' & hins==`h', over(stcofips) 
-					else if `h'==0 & `r'>0 qui svy sdr: total one if agecat==`a' & ombrrn==`r' & hins<., over(stcofips) 
-					else if `h'==0 & `r'==0 qui svy sdr: total one if agecat==`a' & ombrrn<. & hins<., over(stcofips) 
-					else if `h'>0 & `r'==0 qui svy sdr: total one if agecat==`a' & ombrrn<. & hins==`h', over(stcofips) 
+					if `r'>0 qui svy sdr: total one if agecat==`a' & ombrrn==`r' & maid==`h', over(stcofips) 
+					else if `r'==0 qui svy sdr: total one if agecat==`a' & ombrrn<. & maid==`h', over(stcofips) 
 					mat table=r(table)
 					mat table=table'
 					qui tab stcofips, matrow(stcofips)
-					mat hins=J(37,1,1)
+					mat maid=J(37,1,`h')
 					mat ombrrn=J(37,1,`r')
 					mat agecat=J(37,1,`a')
-					mat result=stcofips,hins,ombrrn,agecat,table
+					mat result=stcofips,maid,ombrrn,agecat,table
 					mat master=master\result
 				} */
 				** all ages
 				nois di "-1." _cont
 				ereturn clear
-				if `h'>0 & `r'>0 qui svy: total one if ombrrn==`r' & hins==`h', over(stcofips)
-				else if `h'==0 & `r'>0 qui svy: total one if ombrrn==`r' & hins<., over(stcofips)
-				else if `h'==0 & `r'==0 qui svy: total one if ombrrn<. & hins<., over(stcofips)
-				else if `h'>0 & `r'==0 qui svy: total one if ombrrn<. & hins==`h', over(stcofips)
+				if `r'>0 qui svy: total one if ombrrn==`r' & maid==`h', over(stcofips)
+				else if `r'==0 qui svy: total one if ombrrn<. & maid==`h', over(stcofips)
 				mat table=r(table)
 				mat table=table'
 				qui tab stcofips, matrow(stcofips)
 				mat sex=J(37,1,0)
-				mat hins=J(37,1,`h')
+				mat maid=J(37,1,`h')
 				mat ombrrn=J(37,1,`r')
 				mat agecat=J(37,1,-1)
-				mat result=stcofips,sex,hins,ombrrn,agecat,table
+				mat result=stcofips,sex,maid,ombrrn,agecat,table
 				mat master=master\result
 				** broad age groups
 				foreach a of local acats {
 					nois di "`a'." _cont
 					ereturn clear
-					if `h'>0 & `r'>0 qui svy sdr: total one if agec3==`a' & ombrrn==`r' & hins==`h', over(stcofips) 
-					else if `h'==0 & `r'>0 qui svy sdr: total one if agec3==`a' & ombrrn==`r' & hins<., over(stcofips) 
-					else if `h'==0 & `r'==0 qui svy sdr: total one if agec3==`a' & ombrrn<. & hins<., over(stcofips) 
-					else if `h'>0 & `r'==0 qui svy sdr: total one if agec3==`a' & ombrrn<. & hins==`h', over(stcofips) 
+					if `r'>0 qui svy sdr: total one if agec3b==`a' & ombrrn==`r' & maid==`h', over(stcofips) 
+					else if `r'==0 qui svy sdr: total one if agec3b==`a' & ombrrn<. & maid==`h', over(stcofips) 
 					mat table=r(table)
 					mat table=table'
 					qui tab stcofips, matrow(stcofips)
 					mat sex=J(37,1,0)
-					mat hins=J(37,1,`h')
+					mat maid=J(37,1,`h')
 					mat ombrrn=J(37,1,`r')
 					mat agecat=J(37,1,`a') 
-					mat result=stcofips,sex,hins,ombrrn,agecat,table
+					mat result=stcofips,sex,maid,ombrrn,agecat,table
 					mat master=master\result
 				}
 			}
@@ -1046,11 +1015,9 @@ prog def tabHinsR
 		drop ombrrn
 		drop if stcofips==.
 		diLabel `1'
-		gen byte noninscil=1
-		label var noninscil "non-institutionalized civilian (0=no/1=yes)"
 		label var ombrr "OMB Single Race (1997 Standard; Rarest Race Method)"
-		save results/results_hins_ombrr_`1'.dta, replace
+		label var maid "Medicaid/means-tested health insurance (1=yes,0=no)"
+		save results/results_maid_ombrr_`1'.dta, replace
 	}
 end
-*tabHinsR 2023
-
+*tabmaid 2023
