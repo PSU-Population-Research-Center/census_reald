@@ -11,27 +11,20 @@
 		- **.dta = copies of the PUMS dataset with new weights for specific tables
 		- temp/control_***_tmp.dta = temporary files with control totals
 		- results/results_***_`y'.dta = tabulations of REALD traits by county and age group
-	- TBD: remove health insurance from disability ~ move to a new file for SAIHE+SAIPE based estimates.
-	- TBD: reorganize such that this file comes first, calls JET/REALD20/REALD24 as needed.
 	- TBD: track SPD15 updates. for example, may need to add MENA to ombrr.
-	- TBD: add error metric for tracking iterations in reweighting to aid decision on # of iterations
 	- TBD: expand disability tables to not just noninscil==1 using results from CDC-Places?
+	- TBD: expand health insurance tables for consistency with SAIHE?
 	- TBD: refactor code to reduce duplication of PUMS datasets; read and write only necessary variables for downnscaling/tabulation
 	- TBD: use of (1) lc5/lep/ac3 or (2) ancestry/waob controls may lead to marginally more accurate county lang blend within langc39/langc42.
 	- TBD: rewrite to use downloaded ACS PUMS instead of PUMS API calls.
 	- TBD: restore functionality to work with deprecated REALD 2020 standards as well
-	- Requested: roll up detailed state disability tabulations by all age groups into county broad ages (5-17, 18-64, 65+)
-	- Requested: additional table with sex/agecat detail for bins: (6 groups: m5-17,m18-64,m65+,f5-17,f18-64,f65+)*(3 bins: 25-100, 100-299, 300+)
-	- Requested: convert Chinese and Persian splits into counts (instead of %)
 changelog:
-<<<<<<<< Updated upstream:03_controlled_analysis_v20.do
 	v20: clear files from last run
+	~ timestamp for deliverables from 2026-08-20
 	v19: call additional HINS datasets and tables and fixed some missing A3 tables (not part of REALD technically).
 	v18: reflect new version of preppums and raceeth that add Jewish controls.
-========
 	v19: minor update to call additional HINS datasets and tables and fixed some missing A3 tables (not part of REALD technically).
 	v18: minor update to reflect new version of preppums and raceeth that add Jewish controls.
->>>>>>>> Stashed changes:03_controlled_analysis_v19.do
 	~ timestamp for deliverables from 2026-07-14
 	v17: major update to reflect new workflows and changes to subroutines (see notes to each .do)
 	~ timestamp for deliverables from 2026-07-01
@@ -51,7 +44,7 @@ changelog:
 	v07: adding empty persons to ensure successful language rake 
 	v06: converted blocks to functions and updated filenames/paths; added place for language analysis (WIP)
 	~ timestamp for deliverables from 2024-01-16
-	v05: fixed disability code 
+	v05: fixes to disability code 
 	v04: wip to add disability
 	v03: wip to add disbaility
 	v02: change to faster, consistent totals by county
@@ -108,17 +101,7 @@ prog def doRealdCo
 *	preppums `1' // retrieve variables needed for downscale
 *	expandpums `1' // generate synthetic county level data
 *	pumsreld `1' 2024 // attach imputed REALD status (2020 or 2024 version)
-<<<<<<<< Updated upstream:03_controlled_analysis_v20.do
-
-========
 	
-	// clear tempfiles
-*	local tempfiles: dir "temp" files "control*.dta"
-*	foreach f of local tempfiles {
-*		erase temp/`f'
-*	}
-	
->>>>>>>> Stashed changes:03_controlled_analysis_v19.do
 	// race-eth (ORWA_co > ORWA_raceeth.dta)
 *	reControls `1' // download control totals
 *	reFile `1' // generate raked microdata
@@ -130,21 +113,12 @@ prog def doRealdCo
 	// disability (ORWA_co > ORWA_disaby.dta)
 *	disabyControls `1' // download control totals
 *	disabyFile `1' // generate raked microdata
-<<<<<<<< Updated upstream:03_controlled_analysis_v20.do
 *	tabdisdi `1' // tables by any disability
 *	tabda4 `1' // tabulate by 4-way classification
 *	tabda7 `1' // tabulate by 7-way classification
 *	tabdaoic `1' // tables by specific disabilities, AOIC
 *	tabmaid `1' // tables for medicare
-
-========
-	*tabdisdi `1' // tables by any disability
-	*tabda4 `1' // tabulate by 4-way classification
-	*tabda7 `1' // tabulate by 7-way classification
-	*tabdaoic `1' // tables by specific disabilities, AOIC
-	tabmaid `1' // tables for medicare
 	
->>>>>>>> Stashed changes:03_controlled_analysis_v19.do
 	// languages (ORWA_co > ORWA_lang.dta)
 *	langControls `1' // download control totals
 *	langxwalk // read csv to update language crosswalk between census-sos-oha codes
